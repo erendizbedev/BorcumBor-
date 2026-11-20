@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="39 29 178 198" width="178" height="198" role="img" aria-label="BorcumBorç işareti">
+<defs><linearGradient id="ge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8BE6B9"/><stop offset=".55" stop-color="#3FCB8B"/><stop offset="1" stop-color="#23996A"/></linearGradient><linearGradient id="gc" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6D08A"/><stop offset=".5" stop-color="#D99A52"/><stop offset="1" stop-color="#B26A2E"/></linearGradient>
+<style>
+/* Son durum varsayılandır; animasyon yalnızca "from" karelerini tanımlar. Tek sefer, ~2 sn. */
+.p{stroke-dasharray:1 1}
+.gl{transform:translateY(-14px)} .gr{transform:translateY(14px)}
+.dm{transform-box:fill-box;transform-origin:center}
+.pl{animation:draw .9s cubic-bezier(.16,1,.3,1) 0s both}
+.pr{animation:draw .9s cubic-bezier(.16,1,.3,1) .15s both}
+.gl{animation:upl .7s cubic-bezier(.34,1.3,.64,1) 1.05s both}
+.gr{animation:dnr .7s cubic-bezier(.34,1.3,.64,1) 1.05s both}
+.dm{animation:pop .45s cubic-bezier(.34,1.56,.64,1) 1.55s both}
+@keyframes draw{from{stroke-dashoffset:1}}
+@keyframes upl{from{transform:translateY(0)}}
+@keyframes dnr{from{transform:translateY(0)}}
+@keyframes pop{from{opacity:0;transform:scale(.2) rotate(-90deg)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style></defs>
+<g class="gl"><path class="p pl" pathLength="1" d="M124 58 A70 70 0 0 0 124 198" fill="none" stroke="url(#ge)" stroke-width="30"/></g>
+<g class="gr"><path class="p pr" pathLength="1" d="M132 58 A70 70 0 0 1 132 198" fill="none" stroke="url(#gc)" stroke-width="30"/></g>
+<path class="dm" d="M128 112 L144 128 L128 144 L112 128 Z" fill="#F6EFE3"/>
+</svg>

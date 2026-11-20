@@ -3,27 +3,40 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0F1226">
+  <meta name="theme-color" content="#0A1412">
   <meta name="color-scheme" content="dark">
   <title>BorcumBorç</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <link rel="apple-touch-icon" href="assets/icon-192.png">
+  <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Ekran içeriği app.js tarafından #app içine çizilir -->
-  <main id="app" aria-live="polite"></main>
+  <!-- Açılış ekranı: intro.js yönetir. Tüm ekran dokunma alanıdır (ilk 150 ms dokunuşlar yok sayılır). -->
+  <div id="intro" role="button" tabindex="0" aria-label="Açılışı geç">
+    <div class="intro-stage">
+      <img class="intro-mark" alt="" width="160" height="178">
+      <div class="intro-word" aria-hidden="true"><span>Borcum</span><span class="b2">Borç</span></div>
+    </div>
+    <p class="intro-hint" aria-hidden="true">Geçmek için dokun</p>
+  </div>
+
+  <!-- Ekran içeriği app.js tarafından #app içine çizilir. Canlı bölge yok: yalnızca #toast ve hata kutuları duyurulur. -->
+  <main id="app"></main>
   <noscript><p style="padding:24px">BorcumBorç'ü kullanmak için JavaScript gerekir.</p></noscript>
 
-  <!-- Alt gezinme çubuğu -->
+  <!-- Alt gezinme çubuğu: Ana, Yeni, Onayla, Ayarlar -->
   <nav id="nav" aria-label="Ana gezinme">
-    <a href="#/" data-nav="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/></svg><span>Ana</span></a>
-    <a href="#/new" data-nav="new"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>Yeni</span></a>
-    <a href="#/confirm" data-nav="confirm"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg><span>Onayla</span></a>
-    <a href="#/settings" data-nav="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg><span>Ayarlar</span></a>
+    <a href="#/" data-nav="home"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icons.svg#ana-sayfa"/></svg><span>Ana</span></a>
+    <a href="#/new" data-nav="new"><span class="plus"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icons.svg#yeni"/></svg></span><span>Yeni</span></a>
+    <a href="#/confirm" data-nav="confirm"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icons.svg#onayla"/></svg><span>Onayla</span></a>
+    <a href="#/settings" data-nav="settings"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icons.svg#ayarlar"/></svg><span>Ayarlar</span></a>
   </nav>
   <div id="toast" role="status"></div>
+  <script src="sound.js"></script>
+  <script src="native.js"></script>
+  <script src="intro.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 // Çevrimdışı çalışma: önce önbellek, yoksa ağ. Sürümü değiştirince eski önbellek silinir (activate).
-const CACHE = 'borcumborc-v3';
+const CACHE = 'borcumborc-v4';
 const FILES = [
-  './', 'index.html', 'tokens.css', 'style.css', 'app.js', 'sound.js', 'native.js', 'intro.js', 'manifest.webmanifest',
+  './', 'index.html', 'tokens.css', 'style.css', 'app.js', 'sound.js', 'native.js', 'intro.js', 'intro.css', 'manifest.webmanifest',
   // Yazı tipleri
   'fonts/plus-jakarta-sans-latin-400-normal.woff2', 'fonts/plus-jakarta-sans-latin-600-normal.woff2',
   'fonts/plus-jakarta-sans-latin-700-normal.woff2', 'fonts/plus-jakarta-sans-latin-ext-400-normal.woff2',
@@ -11,7 +11,7 @@ const FILES = [
   'fonts/bricolage-grotesque-latin-ext-700-normal.woff2', 'fonts/bricolage-grotesque-latin-ext-800-normal.woff2',
   // Marka ve ikonlar
   'assets/icons.svg', 'assets/mark.svg', 'assets/mark-animated.svg', 'assets/logo.svg', 'assets/favicon.svg',
-  'assets/icon-192.png', 'assets/icon-512.png'
+  'assets/icon-180.png', 'assets/icon-192.png', 'assets/icon-512.png'
 ];
 
 self.addEventListener('install', (e) => {

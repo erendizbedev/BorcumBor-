@@ -1,14 +1,20 @@
 'use strict';
-/* BorcumBorç - açılış (intro) ekranı (UX şartnamesi bölüm 2).
-   Her soğuk başlatmada aynı sürede gösterilir: logo en az 2,5 sn ekranda kalır (dokunarak geçilemez).
-   Yalnızca transform ve opacity animasyonlanır; asıl animasyon CSS'te ve mark-animated.svg içindedir. */
+/* BorcumBorç - açılış (intro) ekranı.
+   Her soğuk başlatmada aynı sürede gösterilir: logo en az 2,5 sn ekranda kalır (dokunarak geçilemez),
+   ardından 0,35 sn çıkış. Android geri tuşu (Intro.skip(true)) beklemeden geçer.
+   Görünüm intro.css'te, logo animasyonu assets/mark-animated.svg içindedir; burada yalnızca zamanlama ve durum vardır.
+   Genel API (değişmez): BBIntro.start({ onDone, sound, reduced }), BBIntro.skip(force), BBIntro.active(). */
 (function (root) {
   const D = root.document;
-  let el = null, isActive = false, startedAt = 0, timer = 0, exitMs = 0, onDone = null;
+
+  const HOLD_MS = 2500; // logo en az bu kadar görünür (dokunuş bu süre dolmadan yok sayılır)
+  const EXIT_MS = 350;  // çıkış geçişi; azaltılmış harekette anlık
+
+  let el = null, isActive = false, startedAt = 0, timer = 0, exitMs = 0, onDone = null, bound = false;
 
   const active = () => isActive;
 
-  // Bitir: çıkış animasyonunu oynat, sonra gizle ve geri çağır.
+  // Bitir: çıkış geçişini oynat, sonra gizle ve geri çağır.
   function finish() {
     if (!isActive) return;
     isActive = false;
@@ -17,31 +23,38 @@
     if (exitMs > 0) { el.classList.add('leaving'); setTimeout(end, exitMs); } else end();
   }
 
-  const MIN_MS = 2500; // logo en az bu kadar görünür
   // Dokunma ile geçiş: logo süresi dolmadan dokunuş yok sayılır. Geri tuşu bunu atlar (force).
   function skip(force) {
     if (!isActive) return;
-    if (!force && Date.now() - startedAt < MIN_MS) return;
+    if (!force && Date.now() - startedAt < HOLD_MS) return;
     finish();
   }
 
+  // Tıklama ve klavye dinleyicileri yalnızca bir kez bağlanır.
+  function bind() {
+    if (bound) return;
+    bound = true;
+    el.addEventListener('click', () => skip(false));
+    el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); skip(false); } });
+  }
+
   function start(o) {
+    o = o || {};
     el = D.getElementById('intro');
     if (!el) { if (o.onDone) o.onDone(); return; }
     onDone = o.onDone || null;
-    const long = true, still = !!o.reduced; // her açılışta tam sürüm
+    const still = !!o.reduced; // azaltılmış hareket: hazır görünüm, anlık çıkış
     isActive = true; startedAt = Date.now();
     el.hidden = false;
-    el.classList.add(long ? 'long' : 'short');
-    if (still) el.classList.add('still');
-    // Uzun sürümde çizim animasyonu, diğerlerinde hazır işaret
-    el.querySelector('img').src = long && !still ? 'assets/mark-animated.svg' : 'assets/mark.svg';
-    // Süre: 2500 ms logo + 350 ms çıkış. Azaltılmış harekette de logo 2500 ms durur, çıkış anlıktır.
-    const hold = MIN_MS;
-    exitMs = still ? 0 : 350;
-    timer = setTimeout(finish, hold);
-    el.addEventListener('click', () => skip(false));
-    el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); skip(false); } });
+    el.classList.remove('leaving');
+    el.classList.add('long'); // her açılışta tam sürüm
+    el.classList.toggle('still', still);
+    // Animasyonlu işaret yalnızca hareket serbestse; aksi halde son durumdaki hazır işaret
+    const mark = el.querySelector('img');
+    if (mark) mark.src = still ? 'assets/mark.svg' : 'assets/mark-animated.svg';
+    exitMs = still ? 0 : EXIT_MS;
+    timer = setTimeout(finish, HOLD_MS);
+    bind();
     try { el.focus({ preventScroll: true }); } catch (e) { /* odak verilemezse sorun değil */ }
     if (o.sound) o.sound();
   }

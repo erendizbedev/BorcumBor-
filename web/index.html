@@ -3,35 +3,45 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0E1325">
+  <meta name="theme-color" content="#0B0B14">
   <meta name="color-scheme" content="dark">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BorcumBorç">
   <title>BorcumBorç</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <link rel="apple-touch-icon" href="assets/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/icon-180.png">
   <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="intro.css">
 </head>
 <body>
-  <!-- Açılış ekranı: intro.js yönetir. Logo 2,5 sn sabit görünür. -->
+  <!-- Açılış ekranı: intro.js yönetir, tüm stiller intro.css'te. Logo en az 2,5 sn görünür, dokunarak geçilmez. -->
   <div id="intro" role="img" aria-label="BorcumBorç açılıyor">
+    <div class="intro-aurora" aria-hidden="true"><i class="au-a"></i><i class="au-b"></i></div>
     <div class="intro-stage">
-      <img class="intro-mark" alt="" width="160" height="178">
+      <img class="intro-mark" alt="" width="283" height="170">
       <div class="intro-word" aria-hidden="true"><span>Borcum</span><span class="b2">Borç</span></div>
+      <p class="intro-tag" aria-hidden="true">Borç, karşılıklı onayla.</p>
     </div>
+    <div class="intro-progress" aria-hidden="true"><i></i></div>
   </div>
 
   <!-- Ekran içeriği app.js tarafından #app içine çizilir. Canlı bölge yok: yalnızca #toast ve hata kutuları duyurulur. -->
   <main id="app"></main>
   <noscript><p style="padding:24px">BorcumBorç'ü kullanmak için JavaScript gerekir.</p></noscript>
 
-  <!-- Alt gezinme çubuğu: Ana, Yeni, Onayla, Ayarlar -->
+  <!-- Yüzen hap biçimli alt gezinme: Ana, Yeni, Onayla, Ayarlar. Izgara menü düğmesi her ekranın başlığında (app.js) -->
   <nav id="nav" aria-label="Ana gezinme">
     <a href="#/" data-nav="home"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icons.svg#ana-sayfa"/></svg><span>Ana</span></a>
     <a href="#/new" data-nav="new"><span class="plus"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icons.svg#yeni"/></svg></span><span>Yeni</span></a>
     <a href="#/confirm" data-nav="confirm"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icons.svg#onayla"/></svg><span>Onayla</span></a>
     <a href="#/settings" data-nav="settings"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icons.svg#ayarlar"/></svg><span>Ayarlar</span></a>
   </nav>
+  <!-- Menüden "İçe Aktar" için ortak dosya seçici (her ekrandan açılabilir) -->
+  <input type="file" id="file" accept="application/json,.json" hidden>
   <div id="toast" role="status"></div>
   <script src="sound.js"></script>
   <script src="native.js"></script>

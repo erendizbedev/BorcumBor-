@@ -279,11 +279,11 @@ const nativeDone = (async () => {
   add(TEXT, ['c-on-accent'], ['c-copper-1', 'c-copper-2', 'c-copper-3']);
   add(TEXT, ['c-on-emerald'], ['c-emerald']); add(TEXT, ['c-on-coral'], ['c-coral']);
   add(TEXT, ['c-text'], ['c-coral-deep', 'c-emerald-deep']);
-  add(TEXT, ['c-text', 'c-muted', 'c-emerald-soft', 'c-gold'], ['#174A39']);       // detay kartı (hero)
+  add(TEXT, ['c-text', 'c-muted', 'c-emerald-soft', 'c-gold'], ['#241A66']);       // detay kartı (hero)
   add(NONTEXT, ['c-line-strong'], surfaces);                                          // girdi/çip/düğme çerçevesi
   add(NONTEXT, ['c-gold'], surfaces);                                                 // odak halkası
   add(NONTEXT, ['c-copper-2', 'c-emerald', 'c-coral', 'c-info'], surfaces);           // seçili çerçeve, ikonlar, anahtar
-  add(NONTEXT, ['c-coral', 'c-emerald-soft'], ['#174A39']);                           // hero içindeki ikon ve ilerleme çubuğu
+  add(NONTEXT, ['c-coral', 'c-emerald-soft'], ['#241A66']);                           // hero içindeki ikon ve ilerleme çubuğu
   add(NONTEXT, ['c-bg'], ['c-info']);                                                  // anahtar düğmesi: açık durumda topuz/iz
   const val = (k) => (k.startsWith('#') ? k : tok[k]);
   pairs.forEach(([min, f, b]) => { const r = ratio(val(f), val(b)); assert.ok(r >= min, `Kontrast yetersiz: ${f} / ${b} = ${r.toFixed(2)} (en az ${min})`); });

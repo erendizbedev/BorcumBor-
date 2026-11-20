@@ -7,7 +7,7 @@
 /* ================= 1) MANTIK ================= */
 const KEY = 'borcumborc.v1';                 // kayıt verisi
 const SETTINGS_KEY = 'borcumborc.settings.v1'; // ayarlar (kayıt verisinden ayrı)
-const APP_VERSION = '0.2.0';
+const APP_VERSION = '0.3.0';
 const APP_URL = 'https://github.com/erendizbedev/BorcumBor-';
 
 // Kayıt: {id, person, amount, cur, dir:'lent'|'owe', note, date, status:'pending'|'confirmed'|'paid',
@@ -365,9 +365,15 @@ if (typeof document !== 'undefined') (function ui() {
   // Tutar: görünen metin (işaret + renk) ve ekran okuyucu için birimli metin
   const amt = (n, cur, extra) => `<span class="amt ${cls(n)} ${extra || ''}"><span aria-hidden="true">${esc(sign(n, cur))}</span><span class="sr-only">${esc(spoken(n, cur, true))}</span></span>`;
   const dirIc = (r, c) => ic(r.dir === 'lent' ? 'borc-ver' : 'borc-al', c);
-  const backBtn = `<button class="back" type="button" data-act="back" aria-label="Geri">${ic('geri')}</button>`;
+  const backBtn = `<button class="icon-btn" type="button" data-act="back" aria-label="Geri">${ic('geri')}</button>`;
+  const menuBtn = `<button class="icon-btn menu-btn" type="button" data-act="menu" aria-label="Menüyü aç" aria-haspopup="dialog">${ic('izgara')}</button>`;
   const errBox = (m) => `<div class="error" role="alert">${ic('uyari')}<span>${esc(m)}</span></div>`;
-  const curChip = (c) => `<span class="cur-chip">${ic(CURRENCIES[c].icon)}</span>`;
+  const curChip = (c) => `<span class="cur-chip cur-${c}">${ic(CURRENCIES[c].icon)}</span>`;
+  const curTag = (c) => `<span class="cur-tag cur-${c}">${CURRENCIES[c].name}</span>`;
+  // Üst başlık: ızgara menü düğmesi her ekranda solda; ardından (varsa) geri, başlık ve sağda bağlama uygun eylem
+  const topBar = (title, o = {}) => `<div class="top">${menuBtn}${o.back ? backBtn : ''}<h1>${esc(title)}</h1>${o.right || ''}</div>`;
+  const topLink = (href, icon, label) => `<a class="top-act" href="${href}">${ic(icon)}${label}</a>`;
+  const topButton = (act, icon, label) => `<button class="top-act" type="button" data-act="${act}">${ic(icon)}${label}</button>`;
 
   function toast(msg, icon) {
     const t = document.getElementById('toast');
@@ -379,46 +385,46 @@ if (typeof document !== 'undefined') (function ui() {
   /* ---- Ana ekran ---- */
   const unitList = (t, key) => CUR_ORDER.filter((c) => t.byCur[c] && t.byCur[c][key] > 0).map((c) => fmt(t.byCur[c][key], c));
 
+  // Toplam kartı: büyük net tutar, limon/pembe kutucuklar, çok birimde birim satırları, ₺ karşılığı
+  const netSplit = (u, c) => `<div class="split"><div class="sp-lent"><b>${esc(sign(u.lent, c))}</b><span>${ic('alacak')}Alacağın</span></div><div class="sp-owe"><b>${esc(sign(-u.owe, c))}</b><span>${ic('borc')}Borcun</span></div></div>`;
+  function netSingle(t, act) {
+    const c = act[0] || 'TRY', u = t.byCur[c] || { lent: 0, owe: 0, net: 0 };
+    const big = u.net === 0 ? `<span class="amt zero"><span aria-hidden="true">${esc(fmt(0, c))}</span></span><span class="denk">Hesap denk</span>`
+      : `${ic(u.net > 0 ? 'borc-ver' : 'borc-al', 'dirmark ' + cls(u.net))}${amt(u.net, c)}`;
+    return `<div class="net-big">${big}</div>${netSplit(u, c)}`;
+  }
+  function netUnits(t, act) {
+    return '<ul class="units">' + act.map((c) => {
+      const u = t.byCur[c];
+      return `<li class="unit">${curChip(c)}<b class="un">${CURRENCIES[c].name}</b>
+        <div class="unit-net">${ic(u.net >= 0 ? 'borc-ver' : 'borc-al', 'dirmark ' + cls(u.net))}${amt(u.net, c, 'mid')}</div>
+        <span class="sub">Alacak ${esc(fmt(u.lent, c))} · Borç ${esc(fmt(u.owe, c))}</span></li>`;
+    }).join('') + '</ul>';
+  }
+  function netEquivalent(t) {
+    const eq = tryEquivalent(t, settings.rates);
+    if (eq.kind === 'ok') return `<div class="eq">${ic('kur')}<span>≈ ${esc(fmt(eq.value, 'TRY'))} (güncel kura göre${settings.rates.updatedAt ? ', ' + ftime(settings.rates.updatedAt) : ''})</span></div>`;
+    if (eq.kind !== 'missing') return '';
+    const names = eq.missing.map((c) => CURRENCIES[c].name);
+    const who = names.length === 1 ? names[0] + ' kuru' : names.slice(0, -1).join(', ') + ' ve ' + names[names.length - 1] + ' kurları';
+    return `<div class="eq">${ic('kur')}<span>₺ karşılığı için ${who} alınamadı${ratesBusy ? ' (güncelleniyor...)' : ''}</span><button class="inline-btn" type="button" data-act="rates-refresh">Yenile</button></div>`;
+  }
   function netCard(t) {
     const act = activeUnits(t), hasConfirmed = state.records.some((r) => r.status !== 'pending');
     // Ekran okuyucu: tek cümlelik özet ("Türk lirası artı 1.200, dolar eksi 20")
     const word = (c) => { const n = t.byCur[c].net; return `${CURRENCIES[c].long} ${n < 0 ? 'eksi' : 'artı'} ${numFmt(Math.abs(n), 0, digitsOf(c))}`; };
     const label = 'Onaylı net durum: ' + (hasConfirmed ? (act.length ? act.map(word).join(', ') : 'hesap denk') : 'henüz onaylı kayıt yok')
       + '.' + (t.pending ? ` Onay bekleyen ${t.pending} kayıt.` : '');
-    let h = `<section class="card net" role="group" aria-label="${esc(label)}"><div class="net-title">${ic('cuzdan')}<span>Onaylı net durum</span></div>`;
-    if (!hasConfirmed) {
-      h += '<p class="net-none">Henüz onaylı kayıt yok</p>';
-    } else if (act.length <= 1) {
-      const c = act[0] || 'TRY', u = t.byCur[c] || { lent: 0, owe: 0, net: 0 };
-      h += `<div class="net-big">${u.net === 0 ? `<span class="amt zero"><span aria-hidden="true">${esc(fmt(0, c))}</span></span><span class="denk">Hesap denk</span>`
-        : `${ic(u.net > 0 ? 'borc-ver' : 'borc-al', 'dirmark ' + cls(u.net))}${amt(u.net, c)}`}</div>
-        <div class="split"><div><b class="${cls(u.lent)}">${esc(sign(u.lent, c))}</b><span>Alacağın</span></div><div><b class="${cls(-u.owe)}">${esc(sign(-u.owe, c))}</b><span>Borcun</span></div></div>`;
-    } else {
-      h += '<ul class="units">' + act.map((c) => {
-        const u = t.byCur[c];
-        return `<li class="unit">${curChip(c)}<b class="un">${CURRENCIES[c].name}</b>
-          <div class="unit-net">${ic(u.net >= 0 ? 'borc-ver' : 'borc-al', 'dirmark ' + cls(u.net))}${amt(u.net, c, 'mid')}</div>
-          <span class="sub">Alacak ${esc(fmt(u.lent, c))} · Borç ${esc(fmt(u.owe, c))}</span></li>`;
-      }).join('') + '</ul>';
-    }
-    // ₺ karşılığı
-    if (hasConfirmed) {
-      const eq = tryEquivalent(t, settings.rates);
-      if (eq.kind === 'ok') h += `<div class="eq">${ic('kur')}<span>≈ ${esc(fmt(eq.value, 'TRY'))} (güncel kura göre${settings.rates.updatedAt ? ', ' + ftime(settings.rates.updatedAt) : ''})</span></div>`;
-      else if (eq.kind === 'missing') {
-        const names = eq.missing.map((c) => CURRENCIES[c].name);
-        const who = names.length === 1 ? names[0] + ' kuru' : names.slice(0, -1).join(', ') + ' ve ' + names[names.length - 1] + ' kurları';
-        h += `<div class="eq">${ic('kur')}<span>₺ karşılığı için ${who} alınamadı${ratesBusy ? ' (güncelleniyor...)' : ''}</span><button class="inline-btn" type="button" data-act="rates-refresh">Yenile</button></div>`;
-      }
-    }
-    return h + '</section>';
+    const body = !hasConfirmed ? '<p class="net-none">Henüz onaylı kayıt yok</p>' : act.length <= 1 ? netSingle(t, act) : netUnits(t, act);
+    return `<section class="card net" role="group" aria-label="${esc(label)}"><div class="net-title">${ic('cuzdan')}<span>Onaylı net durum</span></div>${body}${hasConfirmed ? netEquivalent(t) : ''}</section>`;
   }
 
+  // Onay bekleyenler: öne çıkan kehribar kart, Onayla ekranına götürür
   function pendingRow(t) {
     if (!t.pending) return '';
     const l = unitList(t, 'pendingLent'), o = unitList(t, 'pendingOwe');
     const sub = [l.length ? 'Alacak ' + l.join(', ') : '', o.length ? 'Borç ' + o.join(', ') : ''].filter(Boolean).join(' · ');
-    return `<div class="pend">${ic('saat')}<div><b>Onay bekleyen · ${t.pending} kayıt</b><span>${esc(sub)}</span></div></div>`;
+    return `<a class="pend" href="#/confirm"><span class="pend-ic" aria-hidden="true">${ic('saat')}</span><div class="pend-tx"><b>Onay bekleyen · ${t.pending} kayıt</b><span>${esc(sub)}</span></div><span class="pend-go">Onayla</span></a>`;
   }
 
   function groupNet(g) {
@@ -428,30 +434,41 @@ if (typeof document !== 'undefined') (function ui() {
     if (units.length > 2) h += `<span class="more">+${units.length - 2}</span>`;
     return h;
   }
+  // Avatar rengi kişinin ilk sıfır olmayan netine göre: alacak limon, borç pembe, denk mor
+  const groupTone = (g) => { const c = CUR_ORDER.find((x) => g.net[x]); return c ? cls(g.net[c]) : 'zero'; };
+  const avatar = (g) => `<div class="avatar ${groupTone(g)}" aria-hidden="true">${esc(g.name.charAt(0).toLocaleUpperCase('tr'))}</div>`;
+  const recAmount = (r) => (r.dir === 'lent' ? 1 : -1) * (remaining(r) || r.amount);
+
+  function recordRow(r) {
+    const c = curOf(r);
+    return `<div class="row" data-go="#/r/${r.id}" role="link" tabindex="0"><span class="dir-ic ${r.dir}">${dirIc(r)}</span>
+      <div class="grow"><div class="t">${esc(r.note || dirText(r))}</div><div class="s"><span>${dirText(r)} · ${fdate(r.date)}</span>${curTag(c)}</div></div>
+      <div class="rcol">${amt(recAmount(r), c)}${badge(r.status)}</div></div>`;
+  }
+  // Tek kayıtlı kişi: bentoda yarım genişlikte dokunulabilir kutucuk; çok kayıtlı kişi: tam genişlikte kart
+  function personCard(g) {
+    if (g.recs.length > 1) {
+      return `<section class="pcard wide"><div class="group-head">${avatar(g)}<h2 class="gname">${esc(g.name)}</h2><div class="gnet">${groupNet(g)}</div></div>${g.recs.map(recordRow).join('')}</section>`;
+    }
+    const r = g.recs[0], c = curOf(r);
+    return `<section class="pcard solo" data-go="#/r/${r.id}" role="link" tabindex="0">${avatar(g)}<h2 class="gname">${esc(g.name)}</h2>
+      <div class="gnet">${amt(recAmount(r), c)}</div><div class="s">${dirText(r)} · ${curTag(c)}</div>${badge(r.status)}</section>`;
+  }
+  // Boş durum: halkalı görsel, kısa açıklama ve iki eylem
+  const emptyHome = () => `<div class="card empty">
+    <div class="empty-art" aria-hidden="true">${ic('cuzdan')}</div>
+    <h2>Henüz kayıt yok</h2>
+    <p class="note">Borç verdin ya da aldın mı? İkinizin onayıyla kayda geçir. İnternet gerekmez.</p>
+    <a class="btn" href="#/new">${ic('yeni')}İlk kaydını oluştur</a><a class="btn ghost" href="#/confirm">${ic('kod')}Elimde bir kod var</a></div>`;
 
   function home() {
     const t = totals(state), groups = groupByPerson(state);
-    const hello = state.me ? `Merhaba, ${esc(state.me.split(' ')[0])}` : 'BorcumBorç';
-    let h = `<div class="view"><div class="top"><img src="assets/mark.svg" alt="" width="32" height="36"><h1>${hello}</h1></div>`;
-    if (!state.records.length) {
-      return h + `<div class="card empty">
-        <div class="empty-art" aria-hidden="true">${ic('cuzdan')}</div>
-        <h2>Henüz kayıt yok</h2>
-        <p class="note">Borç verdin ya da aldın mı? İkinizin onayıyla kayda geçir. İnternet gerekmez.</p>
-        <a class="btn" href="#/new">${ic('yeni')}İlk kaydını oluştur</a><a class="btn ghost" href="#/confirm">${ic('kod')}Elimde bir kod var</a></div></div>`;
-    }
-    h += netCard(t) + pendingRow(t);
-    groups.forEach((g) => {
-      h += `<section class="card"><div class="group-head"><div class="avatar" aria-hidden="true">${esc(g.name.charAt(0).toLocaleUpperCase('tr'))}</div><h2 class="gname">${esc(g.name)}</h2><div class="gnet">${groupNet(g)}</div></div>`;
-      g.recs.forEach((r) => {
-        const c = curOf(r), v = remaining(r) || r.amount;
-        h += `<div class="row" data-go="#/r/${r.id}" role="link" tabindex="0"><span class="dir-ic ${r.dir}">${dirIc(r)}</span>
-          <div class="grow"><div class="t">${esc(r.note || dirText(r))}</div><div class="s">${dirText(r)} · ${fdate(r.date)}</div></div>
-          <div class="rcol">${amt(r.dir === 'lent' ? v : -v, c)}${badge(r.status)}</div></div>`;
-      });
-      h += '</section>';
-    });
-    return h + '</div>';
+    const title = state.me ? `Merhaba, ${state.me.split(' ')[0]}` : 'BorcumBorç';
+    const head = topBar(title, { right: topLink('#/confirm', 'kod', 'Kod gir') });
+    if (!state.records.length) return `<div class="view">${head}${emptyHome()}</div>`;
+    return `<div class="view">${head}${netCard(t)}${pendingRow(t)}
+      <h2 class="sec-h">Kişiler<span class="note">${groups.length} kişi · ${state.records.length} kayıt</span></h2>
+      <div class="people">${groups.map(personCard).join('')}</div></div>`;
   }
 
   /* ---- Kod paylaşım bileşeni (Onay Kodu, Yanıt Kodu ve detaydaki kodlar için ortak) ---- */
@@ -511,14 +528,14 @@ if (typeof document !== 'undefined') (function ui() {
   function newRecord(created) {
     if (created) { // kayıt sonrası: Onay Kodu hazır ekranı
       const c = curOf(created);
-      return `<div class="view"><div class="top">${backBtn}<h1>Onay Kodu hazır</h1></div>
+      return `<div class="view">${topBar('Onay Kodu hazır', { back: true, right: topLink('#/', 'tamam-cift', 'Bitti') })}
         <p class="lead">${esc(created.person)} için ${esc(fmt(created.amount, c))} ${created.dir === 'lent' ? 'borç verdin' : 'borç aldın'}. Kodu ona gönder.</p>
         <div>${badge('pending')}</div>
         ${codePanel('req', requestCode(created, state.me), created)}
         <a class="btn ghost" href="#/confirm">Yanıt Kodu'nu yapıştır</a><a class="btn text" href="#/">Ana ekrana dön</a></div>`;
     }
     const today = new Date().toISOString().slice(0, 10), sel = settings.lastCur, cm = CURRENCIES[sel];
-    return `<div class="view"><div class="top"><h1>Yeni kayıt</h1></div>
+    return `<div class="view">${topBar('Yeni kayıt', { right: topButton('close-new', 'kapat', 'Vazgeç') })}
       ${state.me ? '' : `<div class="notice">${ic('uyari')}<div><p>Adın boş. Karşı taraf seni tanısın diye Ayarlar'dan ad soyadını yaz.</p><a class="btn ghost small" href="#/settings">Ayarlar'ı aç</a></div></div>`}
       <form class="form" data-form="new" autocomplete="off" novalidate>
         <fieldset class="field"><legend>Ne yaptın?</legend>
@@ -562,15 +579,15 @@ if (typeof document !== 'undefined') (function ui() {
         <p class="note">Karşı tarafın gönderdiği Onay Kodu'nu ya da senin kaydına gelen Yanıt Kodu'nu yapıştır.</p>
         <div id="msg"></div><div class="sticky-act"><button class="btn" type="submit">Kodu kontrol et</button></div></form>`;
     }
-    return `<div class="view"><div class="top"><h1>Onayla</h1></div>${body}</div>`;
+    return `<div class="view">${topBar('Onayla', { right: topLink('#/new', 'yeni', 'Yeni') })}${body}</div>`;
   }
 
   /* ---- Kayıt detayı ---- */
   function detail(id) {
     const r = state.records.find((x) => x.id === id);
-    if (!r) return `<div class="view"><div class="top">${backBtn}<h1>Kayıt bulunamadı</h1></div><p class="note">Bu kayıt bu telefonda yok. Ana ekrana dönüp listeden seç.</p><a class="btn ghost" href="#/">Ana ekrana dön</a></div>`;
+    if (!r) return `<div class="view">${topBar('Kayıt bulunamadı', { back: true })}<p class="note">Bu kayıt bu telefonda yok. Ana ekrana dönüp listeden seç.</p><a class="btn ghost" href="#/">Ana ekrana dön</a></div>`;
     const c = curOf(r), rem = remaining(r), pct = Math.min(100, Math.round((paidSum(r) / r.amount) * 100));
-    let h = `<div class="view"><div class="top">${backBtn}<h1>${esc(r.person)}</h1>${badge(r.status)}</div>
+    let h = `<div class="view">${topBar(r.person, { back: true, right: badge(r.status) })}
       <section class="card hero ${r.dir}"><div class="hero-label">${dirIc(r)}<span>${dirVerb(r)}</span></div>
         <div class="big"><span class="sr-only">${esc(spoken(r.amount, c))}</span><span aria-hidden="true">${esc(fmt(r.amount, c))}</span></div>
         <div class="bar" role="progressbar" aria-label="Ödenen oran" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></div>
@@ -595,7 +612,7 @@ if (typeof document !== 'undefined') (function ui() {
   /* ---- Ayarlar ---- */
   const sw = (id, on, labelId, act) => `<button class="switch" type="button" role="switch" id="${id}" aria-checked="${on}" aria-labelledby="${labelId}" data-act="${act}"><span class="knob"></span></button>`;
   let ratesBusy = false, ratesFailed = false;
-  const RATE_ROWS = [['USD', '1 $', 'dolar'], ['EUR', '1 €', 'euro'], ['XAU', '1 gr altın', 'altin']];
+  const RATE_ROWS = [['USD', '1 $'], ['EUR', '1 €'], ['XAU', '1 gr altın']];
   const rateTxt = (c) => (settings.rates[c] ? fmtPlain(settings.rates[c], 'TRY') : '—');
   function ratesStale() {
     const u = settings.rates.updatedAt;
@@ -604,7 +621,8 @@ if (typeof document !== 'undefined') (function ui() {
   function ratesCardInner() {
     const r = settings.rates;
     return `<h2 class="ch">${ic('kur')}Güncel kurlar</h2>
-      <ul class="rate-list">${RATE_ROWS.map(([c, lab, icon]) => `<li>${ic(icon)}<span>${lab}</span><b class="amt">${rateTxt(c)}</b></li>`).join('')}</ul>
+      ${ratesBusy ? '<div class="busy-bar" aria-hidden="true"><i></i></div>' : ''}
+      <ul class="rate-list">${RATE_ROWS.map(([c, lab]) => `<li>${curChip(c)}<span>${lab}</span><b class="amt">${rateTxt(c)}</b></li>`).join('')}</ul>
       <p class="note" id="rateUpd">${ratesBusy ? 'Güncelleniyor...' : r.updatedAt ? `Son güncelleme: ${ftime(r.updatedAt)}${r.source ? ' · Kaynak: ' + esc(r.source) : ''}` : 'Henüz kur alınmadı.'}</p>
       ${ratesFailed ? `<div class="notice slim">${ic('uyari')}<p>Kurlar alınamadı. İnternet bağlantını kontrol et; son alınan kurlar kullanılıyor.</p></div>` : ''}
       ${ratesStale() && !ratesFailed ? `<div class="notice slim">${ic('uyari')}<p>Kurlar 24 saatten eski. Yenilemek için dokun.</p></div>` : ''}
@@ -612,7 +630,7 @@ if (typeof document !== 'undefined') (function ui() {
       <button class="btn ghost" type="button" data-act="rates-refresh" ${ratesBusy ? 'disabled' : ''}>${ic('kur')}Şimdi güncelle</button>`;
   }
   function settingsView() {
-    return `<div class="view"><div class="top"><h1>Ayarlar</h1></div>
+    return `<div class="view">${topBar('Ayarlar', { right: topButton('about', 'hakkinda', 'Hakkında') })}
       <form class="card" data-form="me" novalidate><h2 class="ch">Ad soyad</h2><div class="field"><label for="me" class="note-l">Kodun içinde karşı tarafa görünür</label>
         <input id="me" name="me" type="text" autocapitalize="words" autocomplete="off" maxlength="40" value="${esc(state.me)}" placeholder="Örn. Fatih Yılmaz"></div>
         <button class="btn" type="submit">Kaydet</button></form>
@@ -627,8 +645,8 @@ if (typeof document !== 'undefined') (function ui() {
       <section class="card" id="ratesCard">${ratesCardInner()}</section>
 
       <section class="card"><h2 class="ch">Verilerin</h2><p class="note">Tüm kayıtlar yalnızca bu cihazda tutulur. Yedek almak için dışa aktar.</p>
-        <div class="actions"><button class="btn ghost" type="button" data-act="export">${ic('disa-aktar')}JSON olarak dışa aktar</button>
-        <button class="btn ghost" type="button" data-act="import">${ic('ice-aktar')}JSON içe aktar</button></div><input type="file" id="file" accept="application/json,.json" hidden></section>
+        <div class="actions duo"><button class="btn ghost" type="button" data-act="export">${ic('disa-aktar')}Dışa aktar</button>
+        <button class="btn ghost" type="button" data-act="import">${ic('ice-aktar')}İçe aktar</button></div></section>
 
       <section class="card"><h2 class="ch">${ic('bluetooth')}Bluetooth ile eşleşme <span class="badge soon">Yakında</span></h2>
         <p class="note info">${ic('bilgi')}<span>Bir sonraki sürümde iki telefon yakınken kod paylaşmadan, Bluetooth ile otomatik eşleşip onaylayabilecek.</span></p></section>
@@ -644,26 +662,31 @@ if (typeof document !== 'undefined') (function ui() {
     [$app, $nav].forEach((el) => { if (lockCount > 0) { el.setAttribute('inert', ''); el.setAttribute('aria-hidden', 'true'); } else { el.removeAttribute('inert'); el.removeAttribute('aria-hidden'); } });
   }
   // o: {title, body, buttons:[{id,label,kind,icon}]}; ilk düğme güvenli seçenektir (Esc, karartı ve geri tuşu onu seçer).
+  // Özel içerik: {html, safe, cls, focus}: html başlığı (#dlgT) kendisi taşır; safe güvenli seçenek kimliği; focus açılışta odaklanacak seçici.
   function openSheet(o) {
-    if (dlg) return Promise.resolve(o.buttons[0].id);
+    const safe = o.safe || o.buttons[0].id;
+    if (dlg) return Promise.resolve(safe);
     return new Promise((resolve) => {
       const wrap = document.createElement('div');
-      wrap.className = 'sheet-wrap';
-      wrap.innerHTML = `<div class="scrim" data-sheet="scrim"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="dlgT" aria-describedby="dlgB"><div class="grab" aria-hidden="true"></div>
-        <h2 id="dlgT">${esc(o.title)}</h2><p id="dlgB">${esc(o.body)}</p>
-        <div class="sheet-btns">${o.buttons.map((b) => `<button type="button" class="btn ${b.kind || ''}" data-sheet="${b.id}">${b.icon ? ic(b.icon) : ''}${esc(b.label)}</button>`).join('')}</div></div>`;
-      dlg = { el: wrap, prev: document.activeElement, resolve, safe: o.buttons[0].id };
+      wrap.className = 'sheet-wrap' + (o.cls ? ' ' + o.cls : '');
+      const content = o.html || `<h2 id="dlgT">${esc(o.title)}</h2><p id="dlgB">${esc(o.body)}</p>
+        <div class="sheet-btns">${o.buttons.map((b) => `<button type="button" class="btn ${b.kind || ''}" data-sheet="${b.id}">${b.icon ? ic(b.icon) : ''}${esc(b.label)}</button>`).join('')}</div>`;
+      wrap.innerHTML = `<div class="scrim" data-sheet="scrim"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="dlgT"${o.html ? '' : ' aria-describedby="dlgB"'}><div class="grab" aria-hidden="true"></div>${content}</div>`;
+      dlg = { el: wrap, prev: document.activeElement, resolve, safe };
       document.body.appendChild(wrap);
       lock(true);
       if (!isNativeBack()) history.pushState({ bbDlg: 1 }, ''); // tarayıcıda geri tuşu pencereyi kapatsın
       Snd.play('dialog');
-      wrap.querySelector('button').focus();
+      (o.focus && wrap.querySelector(o.focus) || wrap.querySelector('button')).focus();
     });
   }
   function closeSheet(value, popped) {
     if (!dlg) return;
     const d = dlg; dlg = null;
-    d.el.remove(); lock(false);
+    lock(false);
+    // Kapanış animasyonu: öğe kısa süre sönüp iner, sonra kaldırılır (azaltılmış harekette hemen)
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) d.el.remove();
+    else { d.el.classList.add('out'); d.el.setAttribute('inert', ''); setTimeout(() => d.el.remove(), 200); }
     if (!popped && !isNativeBack() && history.state && history.state.bbDlg) { skipPop++; history.back(); }
     if (d.prev && d.prev.focus && document.body.contains(d.prev)) d.prev.focus({ preventScroll: true });
     d.resolve(value === undefined ? d.safe : value);
@@ -675,10 +698,52 @@ if (typeof document !== 'undefined') (function ui() {
   }
   const askDelete = () => openSheet({ title: 'Bu kayıt silinsin mi?', body: 'Silersen geri alamazsın. Karşı tarafın telefonunda kaydı silmez.',
     buttons: [{ id: 'cancel', label: 'Vazgeç', kind: '' }, { id: 'delete', label: 'Sil', kind: 'danger', icon: 'cop' }] });
-  async function askLeaveForm() {
+  async function askLeaveForm(target) {
     const r = await openSheet({ title: 'Yazdıkların silinecek. Çıkılsın mı?', body: 'Kayıt henüz oluşturulmadı. Çıkarsan forma yazdıkların kaybolur.',
       buttons: [{ id: 'cancel', label: 'Vazgeç', kind: '' }, { id: 'leave', label: 'Çık', kind: 'ghost', icon: 'cikis' }] });
-    if (r === 'leave') location.replace('#/');
+    if (r === 'leave') { await new Promise((ok) => setTimeout(ok, 90)); location.replace(target || '#/'); } // önce pencerenin geri adımı bitsin
+  }
+  const askAbout = () => openSheet({ title: 'BorcumBorç', body: `Sürüm ${APP_VERSION}. İki kişi arasında, internetsiz ve karşılıklı onaylı borç defteri. Kayıtların yalnızca bu cihazda tutulur.`,
+    buttons: [{ id: 'ok', label: 'Kapat' }] });
+
+  /* ---- Izgara menü: 3 sütunlu renkli kutucuklar; her biri var olan bir rotaya ya da işleve bağlı ---- */
+  const MENU_ROUTES = { home: '#/', new: '#/new', confirm: '#/confirm', settings: '#/settings' };
+  // [kimlik, ad, ikon, renk sınıfı]; ses kutucuğu anlık duruma göre değişir
+  const menuItems = () => [
+    ['home', 'Ana', 'ana-sayfa', 't-violet'], ['new', 'Yeni Borç', 'defter-yeni', 't-lime'], ['confirm', 'Onayla', 'onayla', 't-amber'],
+    ['rates', 'Kurlar', 'kur', 't-teal'], ['export', 'Dışa Aktar', 'disa-aktar', 't-coral'], ['import', 'İçe Aktar', 'ice-aktar', 't-violet'],
+    ['settings', 'Ayarlar', 'ayarlar', 't-ink'], ['about', 'Hakkında', 'hakkinda', 't-ink'],
+    ['sound', settings.sound ? 'Ses Açık' : 'Ses Kapalı', settings.sound ? 'ses-acik' : 'ses-kapali', 't-ink']
+  ];
+  const menuTile = ([id, label, icon, tone], i, here) => `<button type="button" class="tile ${tone}${id === here ? ' is-on' : ''}" data-sheet="${id}" style="--i:${i}"${id === here ? ' aria-current="page"' : ''}>${ic(icon)}<span>${label}</span></button>`;
+  async function openMenu() {
+    const { page } = route(), here = page === 'detail' ? 'home' : page;
+    const r = await openSheet({ cls: 'menu', safe: 'close', focus: '[aria-current]', html: `
+      <div class="menu-head"><h2 id="dlgT">Menü</h2><button type="button" class="icon-btn" data-sheet="close" aria-label="Menüyü kapat">${ic('kapat')}</button></div>
+      <div class="menu-grid">${menuItems().map((it, i) => menuTile(it, i, here)).join('')}</div>
+      <p class="menu-foot">BorcumBorç sürüm ${APP_VERSION}</p>` });
+    await new Promise((ok) => setTimeout(ok, 90)); // pencerenin geri adımı (history.back) bitsin; yoksa yeni sayfa geçmişi geri alınır
+    runMenu(r);
+  }
+  // Sayfa değiştirir; yazılmış yeni kayıt formu varsa önce sorar.
+  async function goTo(hash) {
+    const same = (location.hash || '#/') === hash;
+    if (route().page === 'new' && !ctx.created && !same && formDirty()) { askLeaveForm(hash); return; }
+    if (same) { ctx = {}; render(); } else location.hash = hash;
+  }
+  function toggleSound() {
+    settings.sound = !settings.sound; saveSettings(); Snd.claim();
+    if (settings.sound) Snd.play('tap');
+    toast(settings.sound ? 'Ses açıldı' : 'Ses kapatıldı', settings.sound ? 'ses-acik' : 'ses-kapali');
+    if (route().page === 'settings') render(true); // ayarlardaki anahtar da güncel kalsın
+  }
+  function runMenu(id) {
+    if (MENU_ROUTES[id]) goTo(MENU_ROUTES[id]);
+    else if (id === 'rates') { scrollAfter = 'ratesCard'; goTo('#/settings'); }
+    else if (id === 'export') exportBackup();
+    else if (id === 'import') document.getElementById('file').click();
+    else if (id === 'about') askAbout();
+    else if (id === 'sound') toggleSound();
   }
   // Pencere içinde klavye: Esc = güvenli seçenek, Tab pencere içinde döner (odak tuzağı)
   document.addEventListener('keydown', (e) => {
@@ -697,6 +762,7 @@ if (typeof document !== 'undefined') (function ui() {
 
   /* ---- Yönlendirme ---- */
   let ctx = {}; // geçici ekran durumu (üretilen kod, çözülen kod)
+  let scrollAfter = null; // ekran çizilince kaydırılacak öğe kimliği (menüden "Kurlar")
   const route = () => {
     const hash = location.hash || '#/', m = hash.match(/^#\/r\/(.+)$/);
     return { page: m ? 'detail' : hash.slice(2) || 'home', id: m && m[1] };
@@ -705,14 +771,22 @@ if (typeof document !== 'undefined') (function ui() {
     const h = $app.querySelector('h1');
     if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); }
   }
+  // Onayla sekmesinde bekleyen kayıt sayısı rozeti
+  function paintNavBadge() {
+    const a = $nav.querySelector('[data-nav="confirm"]'), n = totals(state).pending;
+    if (n) { a.dataset.count = n; a.setAttribute('aria-label', `Onayla, ${n} kayıt bekliyor`); } else { delete a.dataset.count; a.removeAttribute('aria-label'); }
+  }
   function render(keep) { // keep: sessiz yenileme (kaydırma ve odak yerinde kalır)
     const { page, id } = route();
     const views = { home, new: () => newRecord(ctx.created), confirm: () => confirmView(ctx.pending, ctx.ack, ctx.rec), settings: settingsView, detail: () => detail(id) };
     $app.innerHTML = (views[page] || home)();
     const cur = page === 'detail' ? 'home' : (views[page] ? page : 'home');
     document.querySelectorAll('#nav a').forEach((a) => { const on = a.dataset.nav === cur; a.classList.toggle('on', on); if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+    paintNavBadge();
     if (page === 'new' && !ctx.created) updateDirHelp();
     if (!keep) window.scrollTo(0, 0);
+    const target = scrollAfter && document.getElementById(scrollAfter); scrollAfter = null;
+    if (target) target.scrollIntoView({ block: 'start' });
     if (!keep && !Intro.active() && !dlg) focusHeading();
   }
   window.addEventListener('hashchange', () => { ctx = {}; render(); });
@@ -830,12 +904,18 @@ if (typeof document !== 'undefined') (function ui() {
     rd.readAsText(file);
   }
 
+  function exportBackup() {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify({ ...state, settings: { rates: settings.rates } }, null, 2)], { type: 'application/json' }));
+    a.download = `borcumborc-yedek-${new Date().toISOString().slice(0, 10)}.json`; a.click(); toast('Yedek indirildi');
+  }
+
   /* ---- Tıklamalar ---- */
   // Dokunma sesi: yalnızca düğme, çip, sekme, satır, anahtar (kaydırmada değil, yazarken değil)
   document.addEventListener('click', (e) => {
-    const t = e.target.closest('.btn, .chip, .dirbtn, .switch, .row, .back, #nav a, .inline-btn');
-    if (t) Snd.scheduleTap(t.matches('#nav a, .back') ? 'nav' : 'tap');
-    const f = e.target.closest('.chip, .dirbtn, .row, .back, .inline-btn, .share-app, .unit, .btn.ghost, .btn.danger'); // renkli geri bildirim dalgası
+    const t = e.target.closest('.btn, .chip, .dirbtn, .switch, .row, .icon-btn, .top-act, .tile, .pcard.solo, .pend, #nav a, .inline-btn');
+    if (t) Snd.scheduleTap(t.matches('#nav a, [data-act="back"]') ? 'nav' : 'tap');
+    const f = e.target.closest('.chip, .dirbtn, .row, .icon-btn, .top-act, .inline-btn, .share-app, .unit, .btn.ghost, .btn.danger'); // renkli geri bildirim dalgası
     if (f) { f.classList.remove('flash'); void f.offsetWidth; f.classList.add('flash'); setTimeout(() => f.classList.remove('flash'), 520); }
   });
   document.addEventListener('click', async (e) => {
@@ -845,6 +925,9 @@ if (typeof document !== 'undefined') (function ui() {
     const b = e.target.closest('[data-act]'); if (!b) return;
     const id = b.dataset.id, act = b.dataset.act;
     if (act === 'back') history.length > 1 ? history.back() : (location.hash = '#/');
+    else if (act === 'menu') openMenu();
+    else if (act === 'about') askAbout();
+    else if (act === 'close-new') { if (formDirty()) askLeaveForm(); else location.replace('#/'); }
     else if (act === 'copy') doCopy();
     else if (act === 'share') shareVia(b.dataset.app);
     else if (act === 'selcode') selectCode();
@@ -860,11 +943,8 @@ if (typeof document !== 'undefined') (function ui() {
     } else if (act === 'del') {
       Snd.claim();
       if (await askDelete() === 'delete') { state.records = state.records.filter((x) => x.id !== id); save(); Snd.play('del'); toast('Kayıt silindi'); location.hash = '#/'; }
-    } else if (act === 'export') {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([JSON.stringify({ ...state, settings: { rates: settings.rates } }, null, 2)], { type: 'application/json' }));
-      a.download = `borcumborc-yedek-${new Date().toISOString().slice(0, 10)}.json`; a.click(); toast('Yedek indirildi');
-    } else if (act === 'import') document.getElementById('file').click();
+    } else if (act === 'export') exportBackup();
+    else if (act === 'import') document.getElementById('file').click();
     else if (act === 'sw-sound' || act === 'sw-haptic') { // anahtar kendi durumunu gösterir, toast yok
       const key = act === 'sw-sound' ? 'sound' : 'haptic';
       settings[key] = !settings[key]; saveSettings(); b.setAttribute('aria-checked', String(settings[key]));

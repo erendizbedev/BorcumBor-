@@ -1,0 +1,110 @@
+name: iOS derleme
+
+# Elle çalıştırılır: Actions > "iOS derleme" > Run workflow.
+# 1) Her zaman: imzasız simülatör derlemesi yapılır (iOS projesinin derlendiğini doğrular).
+# 2) Apple Developer gizli anahtarları tanımlıysa: imzalı .ipa üretilir ve artifact olarak yüklenir.
+#    Gerekli gizli anahtarlar (Settings > Secrets and variables > Actions): docs/ios-kurulum.md
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    env:
+      IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+      IOS_CERT_P12_BASE64: ${{ secrets.IOS_CERT_P12_BASE64 }}
+      IOS_CERT_PASSWORD: ${{ secrets.IOS_CERT_PASSWORD }}
+      IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Bağımlılıkları kur
+        run: npm install
+
+      - name: iOS projesini oluştur
+        run: npx cap add ios
+
+      - name: İkon ve açılış ekranını üret
+        run: >
+          npx capacitor-assets generate --ios
+          --iconBackgroundColor '#0B0B14' --iconBackgroundColorDark '#0B0B14'
+          --splashBackgroundColor '#0B0B14' --splashBackgroundColorDark '#0B0B14'
+
+      - name: Web dosyalarını eşitle
+        run: npx cap sync ios
+
+      - name: Simülatör derlemesi (imzasız)
+        working-directory: ios/App
+        run: |
+          xcodebuild -project App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+          cd build/Build/Products/Debug-iphonesimulator && zip -qr "$GITHUB_WORKSPACE/BorcumBorc-simulator.app.zip" App.app
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BorcumBorc-ios-simulator
+          path: BorcumBorc-simulator.app.zip
+
+      - name: İmza bilgileri var mı?
+        id: sign
+        run: |
+          if [ -n "$IOS_TEAM_ID" ] && [ -n "$IOS_CERT_P12_BASE64" ] && [ -n "$IOS_CERT_PASSWORD" ] && [ -n "$IOS_PROFILE_BASE64" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Apple imza gizli anahtarları tanımlı değil; imzalı .ipa atlandı."
+          fi
+
+      - name: Sertifika ve profili kur
+        if: steps.sign.outputs.ready == 'true'
+        run: |
+          KC="$RUNNER_TEMP/build.keychain-db"; KP="$(uuidgen)"
+          security create-keychain -p "$KP" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KP" "$KC"
+          echo "$IOS_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -P "$IOS_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KC"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KP" "$KC"
+          security list-keychains -d user -s "$KC" login.keychain-db
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          echo "$IOS_PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print UUID' /dev/stdin <<< "$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision")")
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print Name' /dev/stdin <<< "$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision")")
+          cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+
+      - name: İmzalı arşiv ve .ipa
+        if: steps.sign.outputs.ready == 'true'
+        working-directory: ios/App
+        run: |
+          cat > "$RUNNER_TEMP/export.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>$IOS_TEAM_ID</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key><dict><key>com.borcumboc.app</key><string>$PROFILE_NAME</string></dict>
+          </dict></plist>
+          PLIST
+          xcodebuild -project App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            DEVELOPMENT_TEAM="$IOS_TEAM_ID" CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" CODE_SIGN_IDENTITY="Apple Distribution" archive
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/export.plist" -exportPath "$GITHUB_WORKSPACE/ipa"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.sign.outputs.ready == 'true'
+        with:
+          name: BorcumBorc-ios-ipa
+          path: ipa/*.ipa

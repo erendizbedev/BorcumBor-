@@ -1,3 +1,5 @@
+> v0.2: renkler değişti. Geçerli değerler `web/tokens.css` içindedir; kontrast oranları `tests/logic.test.js` ile her çalıştırmada doğrulanır. Aşağıdaki tablo eski paletin kaydıdır.
+
 # BorcumBorç Marka Rehberi
 
 ## Fikir
@@ -74,7 +76,7 @@ Dolgu ve özel zeminler:
 - Tek sprite: `assets/icons.svg`. Kullanım: `<svg class="ic" aria-hidden="true"><use href="assets/icons.svg#ana-sayfa"/></svg>`. Önizleme: `assets/icons-preview.html` (bir http sunucusundan açın; file:// ile Chrome harici `<use>` yüklemez).
 - Çizgi ikonlar: 24x24 ızgara, 1.75 px çizgi, yuvarlak uç ve birleşim, `currentColor`. Boyutu CSS ile verin (20 ve 24 px standarttır; 20 px'te okunur), çizgi kalınlığını değiştirmeyin.
 - Renk: etkin ikon `--c-text` veya `--c-emerald`, pasif `--c-muted`, vurgulu eylem `--c-copper-2`, silme ve hata `--c-coral`, bekliyor `--c-gold`. Dokunma alanı en az 48 px.
-- Kimlikler: ana-sayfa, yeni, onayla, ayarlar, cuzdan, borc-ver, borc-al, el-sikisma, kod, kopyala, paylas, whatsapp, telegram, sms, takvim, not, cop, geri, cikis, ses-acik, ses-kapali, titresim, bilgi, uyari, saat, tamam-cift, tl, dolar, euro, altin, kur, disa-aktar, ice-aktar, bluetooth.
+- Kimlikler: ana-sayfa, yeni, onayla, ayarlar, cuzdan, borc-ver, borc-al, el-sikisma, kod, kopyala, paylas, whatsapp, telegram, eposta, takvim, not, cop, geri, cikis, ses-acik, ses-kapali, titresim, bilgi, uyari, saat, tamam-cift, tl, dolar, euro, altin, kur, disa-aktar, ice-aktar, bluetooth.
 - Para birimi rozetleri (dolgulu): `tl-rozet`, `dolar-rozet`, `euro-rozet`, `altin-rozet`. Disk `currentColor` ile boyanır, glif şeffaf kesiktir; zeminin rengi görünür.
-- whatsapp, telegram, sms ikonları marka logosu değil, genel "mesaj gönder" biçimleridir (yuvarlak balon + yukarı ok, kağıt uçak, noktalı balon) ve tek renk paletle kullanılır; marka renkleri kullanılmaz.
+- whatsapp, telegram, eposta ikonları marka logosu değil, genel "mesaj gönder" biçimleridir (yuvarlak balon + yukarı ok, kağıt uçak, noktalı balon) ve tek renk paletle kullanılır; marka renkleri kullanılmaz.
 - Tamam-çift = onaylandı, saat = bekliyor, onayla = kalkan + onay (karşılıklı onay eylemi).

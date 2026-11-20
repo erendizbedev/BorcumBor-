@@ -1,5 +1,5 @@
 /* BorcumBorç tasarım belirteçleri (design tokens)
-   Koyu orman-yeşili zemin, zümrüt, bakır-altın ve mercan/kiremit.
+   Gece laciverti zemin, pastel nane (alacak), gül (borç), kehribar (bekliyor) ve periwinkle ana eylem rengi.
    Kontrast değerleri web/assets/brand.md içinde belgelidir. */
 
 /* ---------- Yazı tipleri (internetsiz, yerel woff2) ---------- */
@@ -22,45 +22,48 @@
   color-scheme:dark;
 
   /* ---------- Zemin ve yüzeyler ---------- */
-  --c-bg:#0A1412;            /* uygulama zemini (mürekkep-orman) */
-  --c-surface:#11221E;       /* kart */
-  --c-surface-2:#17302A;     /* yükseltilmiş kart, girdi alanı */
-  --c-surface-3:#1F3D35;     /* basılı/seçili durum */
-  --c-line:#24443B;          /* süs çizgisi (kontrast şartı yok) */
-  --c-line-strong:#4F8A76;   /* girdi/odak kenarı, bileşen sınırı (>=3:1) */
+  --c-bg:#0E1325;            /* uygulama zemini (gece laciverti) */
+  --c-surface:#161D36;       /* kart */
+  --c-surface-2:#1F2849;     /* yükseltilmiş kart, girdi alanı */
+  --c-surface-3:#29345E;     /* basılı/seçili durum */
+  --c-line:#2A3560;          /* süs çizgisi (kontrast şartı yok) */
+  --c-line-strong:#7384C9;   /* girdi/odak kenarı, bileşen sınırı (>=3:1) */
 
   /* ---------- Metin ---------- */
-  --c-text:#F6EFE3;          /* krem, ana metin */
-  --c-muted:#9FB3A9;         /* sönük metin */
-  --c-on-accent:#1C0F04;     /* bakır gradyan üstündeki koyu mürekkep */
-  --c-on-emerald:#06150E;    /* zümrüt dolgu üstündeki metin */
-  --c-on-coral:#1E0A04;      /* mercan dolgu üstündeki metin */
+  --c-text:#F2F4FF;          /* açık lavanta beyazı, ana metin */
+  --c-muted:#A9B3D8;         /* sönük metin */
+  --c-on-accent:#0B1030;     /* periwinkle gradyan üstündeki koyu lacivert */
+  --c-on-emerald:#05160F;    /* zümrüt dolgu üstündeki metin */
+  --c-on-coral:#2A0711;      /* mercan dolgu üstündeki metin */
 
   /* ---------- Anlamsal renkler ---------- */
-  --c-emerald:#3FCB8B;       /* alacak / borç verdim / güven / onaylandı */
-  --c-emerald-soft:#7BE0B0;  /* zümrüt, koyu zümrüt zemin üstünde */
-  --c-emerald-deep:#17604A;  /* zümrüt dolgu zemini */
-  --c-coral:#F78E70;         /* borç aldım / dikkat / silme */
-  --c-coral-deep:#A63F28;    /* mercan dolgu zemini (krem metin 5.4:1) */
-  --c-gold:#E4B068;          /* bekliyor / uyarı / altın birimi */
-  --c-info:#8CC3D1;          /* bilgi */
-  --c-copper-1:#F0C47E;      /* bakır-altın gradyan durakları */
-  --c-copper-2:#D99A52;
-  --c-copper-3:#BE7637;
+  --c-press-emerald:rgba(74,222,159,.28);  /* basılınca: borç ver / onay */
+  --c-press-coral:rgba(255,139,160,.28);   /* basılınca: borç al / sil */
+  --c-press-accent:rgba(142,156,255,.30);  /* basılınca: genel düğme */
+  --c-emerald:#4ADE9F;       /* alacak / borç verdim / güven / onaylandı */
+  --c-emerald-soft:#8CF0C4;  /* zümrüt, koyu zümrüt zemin üstünde */
+  --c-emerald-deep:#14674C;  /* zümrüt dolgu zemini */
+  --c-coral:#FF8BA0;         /* borç aldım / dikkat / silme */
+  --c-coral-deep:#A8324F;    /* mercan dolgu zemini (krem metin 5.4:1) */
+  --c-gold:#FFCB6B;          /* bekliyor / uyarı / altın birimi */
+  --c-info:#7CC8FF;          /* bilgi */
+  --c-copper-1:#B9C4FF;      /* periwinkle gradyan durakları */
+  --c-copper-2:#8E9CFF;
+  --c-copper-3:#7686FA;
 
   /* Saydam dolgular (yüzey üstünde rozet/çip zemini) */
-  --c-emerald-bg:rgba(63,203,139,.14);
-  --c-coral-bg:rgba(247,142,112,.14);
-  --c-gold-bg:rgba(228,176,104,.14);
-  --c-info-bg:rgba(140,195,209,.14);
+  --c-emerald-bg:rgba(74,222,159,.14);
+  --c-coral-bg:rgba(255,139,160,.14);
+  --c-gold-bg:rgba(255,203,107,.14);
+  --c-info-bg:rgba(124,200,255,.14);
 
   /* ---------- Gradyanlar ---------- */
   --grad-copper:linear-gradient(135deg,var(--c-copper-1) 0%,var(--c-copper-2) 55%,var(--c-copper-3) 100%); /* ana eylem; üstünde --c-on-accent */
-  --grad-emerald:linear-gradient(135deg,#7BE0B0 0%,#3FCB8B 55%,#27A06C 100%);
-  --grad-hero:linear-gradient(150deg,#174A39 0%,#113628 55%,#0C2720 100%);   /* bakiye kartı; üstünde krem/sönük/zümrüt-soft/altın okunur */
-  --grad-surface:linear-gradient(180deg,#14281F 0%,#11221E 100%);
-  --grad-glow:radial-gradient(120% 80% at 50% -10%,rgba(63,203,139,.16) 0%,rgba(10,20,18,0) 60%);
-  --grad-scrim:linear-gradient(180deg,rgba(10,20,18,0) 0%,rgba(10,20,18,.92) 100%);
+  --grad-emerald:linear-gradient(135deg,#8CF0C4 0%,#4ADE9F 55%,#26A872 100%);
+  --grad-hero:linear-gradient(150deg,#202C66 0%,#19234F 55%,#131A3C 100%);   /* bakiye kartı; üstünde krem/sönük/zümrüt-soft/altın okunur */
+  --grad-surface:linear-gradient(180deg,#19213F 0%,#161D36 100%);
+  --grad-glow:radial-gradient(120% 80% at 50% -10%,rgba(142,156,255,.20) 0%,rgba(14,19,37,0) 60%);
+  --grad-scrim:linear-gradient(180deg,rgba(14,19,37,0) 0%,rgba(14,19,37,.92) 100%);
 
   /* ---------- Yarıçaplar ---------- */
   --r-xs:8px; --r-sm:12px; --r-md:16px; --r-lg:22px; --r-xl:28px; --r-pill:999px;
@@ -70,10 +73,10 @@
   --shadow-1:0 1px 2px rgba(0,0,0,.35);
   --shadow-2:0 6px 16px -4px rgba(0,0,0,.5),0 2px 4px rgba(0,0,0,.3);
   --shadow-3:0 18px 40px -12px rgba(0,0,0,.65),0 4px 10px rgba(0,0,0,.35);
-  --shadow-inset:inset 0 1px 0 rgba(246,239,227,.06);
-  --shadow-glow-copper:0 8px 24px -6px rgba(217,154,82,.45);
-  --shadow-glow-emerald:0 8px 24px -6px rgba(63,203,139,.4);
-  --focus-ring:0 0 0 3px rgba(10,20,18,1),0 0 0 5px #E4B068;
+  --shadow-inset:inset 0 1px 0 rgba(242,244,255,.07);
+  --shadow-glow-copper:0 8px 24px -6px rgba(142,156,255,.45);
+  --shadow-glow-emerald:0 8px 24px -6px rgba(74,222,159,.4);
+  --focus-ring:0 0 0 3px rgba(14,19,37,1),0 0 0 5px #FFCB6B;
 
   /* ---------- Aralıklar (4 px tabanı) ---------- */
   --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px;

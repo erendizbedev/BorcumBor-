@@ -107,7 +107,6 @@ assert.strictEqual(L.createRecord(fresh(), { person: 'A', amount: 10.256, dir: '
   assert.strictEqual(L.decodeCode(msg + '\n\nTeşekkürler :)').id, r.id);
   const cut = msg.slice(0, msg.length - 40) + '\n' + msg.slice(msg.length - 40); // kod ortadan bölündü
   assert.strictEqual(L.decodeCode(cut).id, r.id);
-  assert.strictEqual(L.decodeCode(L.smsMessage(code)).id, r.id);
   const both = 'Merhaba, işte kod:\n' + code.slice(0, 30) + '\n' + code.slice(30) + '\nTeşekkürler'; // hem bölünmüş hem sonda metin var
   assert.strictEqual(L.decodeCode(both).id, r.id);
 }
@@ -174,9 +173,22 @@ assert.strictEqual(L.dirText({ dir: 'lent' }), 'Borç ver'); assert.strictEqual(
   assert.strictEqual(L.tryEquivalent(t, { USD: 30, EUR: 35 }).value, 100 - 300 + 175);
 }
 // Ayarlar normalleştirme
-assert.deepStrictEqual(L.normalizeSettings(null), { sound: true, volume: 70, haptic: true, rates: { USD: null, EUR: null, XAU: null, updatedAt: null }, lastCur: 'TRY' });
+assert.deepStrictEqual(L.normalizeSettings(null), { sound: true, volume: 70, haptic: true, rates: { USD: null, EUR: null, XAU: null, updatedAt: null, source: null }, lastCur: 'TRY' });
 assert.strictEqual(L.normalizeSettings({ volume: 0, sound: false }).volume, 0); assert.strictEqual(L.normalizeSettings({ volume: 999 }).volume, 100);
 assert.strictEqual(L.normalizeSettings({ rates: { USD: -1, EUR: 35 } }).rates.USD, null);
+// Canlı kur ayrıştırma: fawazahmed0 (küçük harf, 1 TL = x) ve er-api (büyük harf) biçimleri; ons -> gram; bozuk veri reddedilir
+{
+  const a = L.parseRatesPayload({ date: '2026-11-20', try: { usd: 0.0232, eur: 0.0200, xau: 0.0000055 } });
+  assert.ok(Math.abs(a.USD - 1 / 0.0232) < 1e-9 && Math.abs(a.EUR - 50) < 1e-9);
+  assert.ok(Math.abs(a.XAU - 1 / 0.0000055 / 31.1034768) < 1e-6);
+  const b = L.parseRatesPayload({ result: 'success', rates: { USD: 0.025, EUR: 0.0215, XAU: 0.000006 } });
+  assert.ok(b && Math.abs(b.USD - 40) < 1e-9);
+  assert.strictEqual(L.parseRatesPayload({ try: { usd: 0.0232, eur: 0.02 } }).XAU, null); // altın yoksa yalnızca o boş
+  assert.strictEqual(L.parseRatesPayload({ try: { usd: 0, eur: 0.02 } }), null);
+  assert.strictEqual(L.parseRatesPayload({ try: { usd: 5, eur: 5 } }), null); // 1 $ = 0,2 TL: mantıksız
+  assert.strictEqual(L.parseRatesPayload(null), null);
+  assert.ok(L.RATE_SOURCES.length >= 2 && L.RATE_SOURCES.every((r) => r.url.startsWith('https://')));
+}
 
 // Paylaşım: URL'ler tabloyla birebir, Türkçe karakter ve satır sonu doğru kodlanır; kod son satırdadır
 {
@@ -185,7 +197,8 @@ assert.strictEqual(L.normalizeSettings({ rates: { USD: -1, EUR: 35 } }).rates.US
   assert.ok(!/Borç ver|Borç al/.test(msg)); // mesajda yön yazılmaz
   assert.strictEqual(L.shareUrl('whatsapp', msg), 'https://wa.me/?text=' + encodeURIComponent(msg));
   assert.strictEqual(L.shareUrl('telegram', msg), 'https://t.me/share/url?url=' + encodeURIComponent(L.APP_URL) + '&text=' + encodeURIComponent(msg));
-  assert.strictEqual(L.shareUrl('sms', L.smsMessage(code)), 'sms:?body=' + encodeURIComponent('BorcumBorç kodu (Onayla sekmesine yapıştır): ' + code));
+  assert.strictEqual(L.shareUrl('email', msg), 'mailto:?subject=' + encodeURIComponent('BorcumBorç onay kodu') + '&body=' + encodeURIComponent(msg));
+  assert.strictEqual(L.shareUrl('sms', msg), ''); // SMS kaldırıldı
   assert.ok(L.shareUrl('whatsapp', msg).includes('%0A') && L.shareUrl('whatsapp', msg).includes('%C5%9E%C3%BCkr%C3%BC')); // \n ve Ş,ü,ü
   assert.ok(L.shareMessage('req', { name: '', amountText: '1 ₺', code }).startsWith('Bir arkadaşın seninle'));
   assert.ok(L.shareMessage('ack', { name: 'Ömer', code }).startsWith('Ömer kaydı onayladı.') && L.shareMessage('ack', { name: 'Ömer', code }).endsWith('\nKod:\n' + code));
@@ -200,7 +213,8 @@ assert.strictEqual(L.normalizeSettings({ rates: { USD: -1, EUR: 35 } }).rates.US
     resume() { made.resumed++; this.state = 'running'; return Promise.resolve(); }
     createGain() { const g = { gain: new FakeParam(), connect() {} }; made.buses.push(g); return g; }
     createBiquadFilter() { return { frequency: {}, connect() {} }; }
-    createOscillator() { made.osc++; return { frequency: new FakeParam(), connect() {}, start() {}, stop() {} }; }
+    createPeriodicWave(re, im) { assert.strictEqual(re.length, im.length); made.waves = (made.waves || 0) + 1; return {}; }
+    createOscillator() { made.osc++; return { frequency: new FakeParam(), connect() {}, start() {}, stop() {}, setPeriodicWave() { made.pw = (made.pw || 0) + 1; } }; }
   }
   const vib = []; let t = 1000;
   const mk = (cfg) => { const s = S.createSound({ AudioContext: FakeCtx, navigator: { vibrate: (p) => vib.push(p) }, plugins: {}, now: () => t }); s.setConfig(cfg); s.unlock(); return s; };
@@ -212,6 +226,7 @@ assert.strictEqual(L.normalizeSettings({ rates: { USD: -1, EUR: 35 } }).rates.US
   assert.strictEqual(made.osc, 0); assert.deepStrictEqual(vib.pop(), [25, 40, 25]);
   s = mk({ sound: true, volume: 70, haptic: false }); tick(); s.play('success');
   assert.strictEqual(made.osc, 2); assert.strictEqual(vib.length, 0);
+  assert.ok(made.waves === 1 && made.pw === 2, 'yumuşak ton PeriodicWave ile çalmalı');
   // seviye 0: sessiz
   made.osc = 0; s = mk({ sound: true, volume: 0, haptic: true }); tick(); s.play('confirm'); assert.strictEqual(made.osc, 0);
   // olay tablosu: her olay tablodaki titreşimi verir

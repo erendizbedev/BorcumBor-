@@ -5,18 +5,22 @@
 (function (root) {
   // ---- Olay tablosu: her nota {type, f0, f1 (isteğe bağlı), at (sn), dur (sn)} ----
   // rel = göreli şiddet, lp = alçak geçiren süzgeç (Hz), vib = titreşim kalıbı (ms: aç, kapa, aç...)
+  // Ses paleti: sıcak, yumuşak "cam/marimba" tonu. 'soft' = temel + zayıf 2. ve 3. harmonik (PeriodicWave),
+  // 'bell' = parlak ama kısa çan. Tüm sesler alçak geçiren süzgeçten (varsayılan 3200 Hz) geçer; sert dalga (testere) yok.
+  // Notalar C majör pentatonik (C5 523, E5 659, G5 784, C6 1047) üzerine kurulu: hiçbir ses diğeriyle çatışmaz.
   const SOUND_EVENTS = {
-    tap:     { rel: 0.5,  vib: [10],                  notes: [{ type: 'sine', f0: 1400, f1: 900, at: 0, dur: 0.035 }] },
-    nav:     { rel: 0.45, vib: [8],                   notes: [{ type: 'sine', f0: 520, f1: 700, at: 0, dur: 0.06 }] },
-    success: { rel: 0.7,  vib: [25, 40, 25],          notes: [{ type: 'triangle', f0: 660, at: 0, dur: 0.08 }, { type: 'triangle', f0: 880, at: 0.08, dur: 0.12 }] },
-    confirm: { rel: 0.8,  vib: [30, 50, 30, 50, 70],  notes: [{ type: 'sine', f0: 523, at: 0, dur: 0.09 }, { type: 'sine', f0: 659, at: 0.09, dur: 0.09 }, { type: 'sine', f0: 784, at: 0.18, dur: 0.2 }] },
-    error:   { rel: 0.65, vib: [70, 50, 70], lp: 1200, notes: [{ type: 'triangle', f0: 330, at: 0, dur: 0.1 }, { type: 'triangle', f0: 247, at: 0.1, dur: 0.16 }] },
-    copy:    { rel: 0.5,  vib: [15],                  notes: [{ type: 'sine', f0: 1200, at: 0, dur: 0.02 }, { type: 'sine', f0: 1200, at: 0.05, dur: 0.02 }] },
-    pay:     { rel: 0.7,  vib: [20, 40, 50],          notes: [{ type: 'sine', f0: 1760, at: 0, dur: 0.26 }, { type: 'sine', f0: 2349, at: 0.06, dur: 0.2 }] },
-    del:     { rel: 0.55, vib: [90], lp: 800,         notes: [{ type: 'sawtooth', f0: 480, f1: 140, at: 0, dur: 0.17 }] },
-    intro:   { rel: 0.7,  vib: null,                  notes: [{ type: 'sine', f0: 262, at: 0, dur: 0.11 }, { type: 'sine', f0: 330, at: 0.11, dur: 0.11 }, { type: 'sine', f0: 392, at: 0.22, dur: 0.11 }, { type: 'sine', f0: 523, at: 0.33, dur: 0.45 }] },
-    dialog:  { rel: 0.5,  vib: [15],                  notes: [{ type: 'sine', f0: 440, at: 0, dur: 0.05 }] }
+    tap:     { rel: 0.45, vib: [10],                  notes: [{ type: 'soft', f0: 440, f1: 392, at: 0, dur: 0.07 }] },
+    nav:     { rel: 0.4,  vib: [8],                   notes: [{ type: 'soft', f0: 523, f1: 587, at: 0, dur: 0.08 }] },
+    success: { rel: 0.7,  vib: [25, 40, 25],          notes: [{ type: 'soft', f0: 523, at: 0, dur: 0.12 }, { type: 'soft', f0: 784, at: 0.09, dur: 0.3 }] },
+    confirm: { rel: 0.8,  vib: [30, 50, 30, 50, 70],  notes: [{ type: 'soft', f0: 523, at: 0, dur: 0.14 }, { type: 'soft', f0: 659, at: 0.1, dur: 0.14 }, { type: 'soft', f0: 784, at: 0.2, dur: 0.45 }] },
+    error:   { rel: 0.6,  vib: [70, 50, 70], lp: 1500, notes: [{ type: 'soft', f0: 392, at: 0, dur: 0.14 }, { type: 'soft', f0: 311, at: 0.11, dur: 0.26 }] },
+    copy:    { rel: 0.45, vib: [15],                  notes: [{ type: 'soft', f0: 1047, at: 0, dur: 0.05 }, { type: 'soft', f0: 1319, at: 0.05, dur: 0.07 }] },
+    pay:     { rel: 0.7,  vib: [20, 40, 50],          notes: [{ type: 'bell', f0: 1568, at: 0, dur: 0.35 }, { type: 'bell', f0: 2093, at: 0.07, dur: 0.4 }] },
+    del:     { rel: 0.5,  vib: [90], lp: 900,         notes: [{ type: 'soft', f0: 392, f1: 175, at: 0, dur: 0.2 }] },
+    intro:   { rel: 0.65, vib: null,                  notes: [{ type: 'soft', f0: 523, at: 0, dur: 0.2 }, { type: 'soft', f0: 659, at: 0.18, dur: 0.2 }, { type: 'soft', f0: 784, at: 0.36, dur: 0.2 }, { type: 'soft', f0: 1047, at: 0.54, dur: 0.9 }] },
+    dialog:  { rel: 0.45, vib: [15],                  notes: [{ type: 'soft', f0: 440, at: 0, dur: 0.07 }] }
   };
+  const WAVES = { soft: [0, 1, 0.22, 0.07], bell: [0, 1, 0.5, 0.25, 0.1] }; // harmonik genlikleri (indeks 0 = DC)
   const MIN_GAP_MS = 40; // aynı sesin tekrarı arasındaki en az süre
 
   // Genlik = (seviye/100)^2 x göreli şiddet x 0,8. Seviye 0 ise ses yok.
@@ -76,6 +80,19 @@
       } catch (e) { /* titreşim yoksa sessizce geç */ }
     }
 
+    // Harmonik dalgalar bağlam başına bir kez üretilir; PeriodicWave desteklenmiyorsa sade sinüse düşer.
+    const waves = {};
+    function wave(name) {
+      if (!WAVES[name] || !ctx || typeof ctx.createPeriodicWave !== 'function') return null;
+      if (!waves[name]) {
+        try {
+          const re = new Float32Array(WAVES[name].length), im = Float32Array.from(WAVES[name]);
+          waves[name] = ctx.createPeriodicWave(re, im);
+        } catch (e) { waves[name] = null; }
+      }
+      return waves[name];
+    }
+
     // Bir olayı çalar: tek seferde en fazla 1 ses (yenisi eskisini keser).
     function play(name) {
       const ev = SOUND_EVENTS[name];
@@ -95,18 +112,17 @@
       if (active) { try { active.gain.setTargetAtTime(0, ctx.currentTime, 0.006); } catch (e) { /* yoksay */ } }
       const bus = ctx.createGain();
       bus.gain.value = 1;
-      if (ev.lp) {
-        const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = ev.lp;
-        bus.connect(f); f.connect(ctx.destination);
-      } else bus.connect(ctx.destination);
+      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = ev.lp || 3200; // yumuşatma: tiz kenarları keser
+      bus.connect(f); f.connect(ctx.destination);
       active = bus;
       ev.notes.forEach((n) => {
         const o = ctx.createOscillator(), g = ctx.createGain(), s = t0 + n.at, e = s + n.dur;
-        o.type = n.type;
+        const w = wave(n.type);
+        if (w) o.setPeriodicWave(w); else o.type = n.type === 'soft' || n.type === 'bell' ? 'sine' : n.type;
         o.frequency.setValueAtTime(n.f0, s);
         if (n.f1) o.frequency.exponentialRampToValueAtTime(n.f1, e);
         g.gain.setValueAtTime(0.0001, s);
-        g.gain.linearRampToValueAtTime(amp, s + 0.004);   // yumuşak başlangıç (tık sesi olmasın)
+        g.gain.linearRampToValueAtTime(amp, s + 0.012);   // yumuşak başlangıç (tık sesi olmasın)
         g.gain.exponentialRampToValueAtTime(0.0001, e);   // sönüm
         o.connect(g); g.connect(bus);
         o.start(s); o.stop(e + 0.02);

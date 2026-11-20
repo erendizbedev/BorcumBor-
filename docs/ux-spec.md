@@ -1,3 +1,5 @@
+> **Not (v0.2):** Bu belge [`v0.2-degisiklikler.md`](v0.2-degisiklikler.md) ile birlikte okunur; çelişkide o geçerlidir (SMS yok, kurlar otomatik, yeni palet, açılış 2,5 sn).
+
 # BorcumBorç UX Şartnamesi (yazılımcı için)
 
 Kapsam: web/app.js, style.css, index.html. Görsel kimlik (hex değerleri, sprite) başka ajandan gelir; bu belge davranışı ve anlamı belirler. Birim: 1 dp = 1 CSS px (WebView, varsayılan yakınlaştırma). Mevcut testler (`tests/logic.test.js`) yeşil kalmalıdır.
@@ -147,7 +149,7 @@ Genel yerleşim: birincil eylem ekranın alt yarısında; form ekranlarında gö
 1. Üst: `geri`, başlık "Onay Kodu hazır". Altında kayıt cümlesi (bölüm 4).
 2. Kod kutusu: tek tek seçilebilir, tek dokunuşla tümünü seçer, ≥ 14 px tek aralıklı yazı, `kod` ikonu.
 3. **Kodu kopyala**: tam genişlik, 56 dp, bakır-altın dolu, `kopyala` ikonu. Kopyalayınca etiket 2 s "Kopyalandı" olur (ikon `tamam-cift`), kopyalama sesi.
-4. Altında "Kodu gönder" başlığı ve 2x2 ızgara (her düğme ≥ 56 dp yükseklik, ≈ yarı genişlik, 8 dp aralık, ikon solda + etiket 16 px): **WhatsApp** (`whatsapp`), **Telegram** (`telegram`), **SMS** (`sms`), **Diğer** (`paylas`). Düğmeler hayalet stil, marka renkleri kullanılmaz.
+4. Altında "Kodu gönder" başlığı ve ikon çubuğu (v0.2: yuvarlak 56 dp ikon, altında etiket): **WhatsApp** (`whatsapp`), **Telegram** (`telegram`), **E-posta** (`eposta`), **Diğer** (`paylas`). Düğmeler hayalet stil, marka renkleri kullanılmaz.
 5. Altta ikincil dokunma hedefleri: "Yanıt Kodu'nu yapıştır" (hayalet), "Ana ekrana dön" (metin düğmesi).
 6. Bekleme durumu `saat` ikonlu nötr rozet.
 7. Paylaşım ayrıntıları bölüm 7'dedir.
@@ -205,7 +207,6 @@ URL şemaları (hepsinde değer `encodeURIComponent`, satır sonu `%0A`):
 |---|---|---|
 | WhatsApp | `https://wa.me/?text=<mesaj>` | Resmî "click to chat" biçimi; numara yoksa kişi seçtirir. |
 | Telegram | `https://t.me/share/url?url=<APP_URL>&text=<mesaj>` | Telegram belgesinde `url` ZORUNLU, `text` isteğe bağlı; istemci url'yi ilk satıra koyar, metni altına ekler. Bu yüzden `url` boş bırakılmaz; `APP_URL` = depo adresi (sabit). Telegram'da mesaj "APP_URL\n{mesaj}" görünür; bu kabul edilir. |
-| SMS | `sms:?body=<mesaj>` | Android için standart (RFC 5724) biçim. İstenen `sms:?&body=` biçimi iOS 8+ uyumluluk numarasıdır; uygulama yalnızca Android olduğundan gerekmez, iOS eklenirse bu biçime geçilir. Her iki biçim de Android'de çalışır; ilki seçildi. Numara boş: kişiyi kullanıcı seçer. |
 | Diğer | `Share.share({title, text, dialogTitle})` (`@capacitor/share`), yoksa `navigator.share`, o da yoksa kopyala | Sistem paylaşım menüsü; Bluetooth, e-posta, Signal vb. |
 
 Açma: `window.open(url, '_blank')` (Capacitor, izinli olmayan adresleri sistem uygulamasına yönlendirir). Cihazda doğrulanır (kabul ölçütü 36).
@@ -243,7 +244,7 @@ Başarısızlık / yedek akış:
 | Ana: liste satırı, rozet | `borc-ver`, `borc-al`; rozet: `saat` (bekliyor), `onayla` (onaylandı), `tamam-cift` (ödendi) |
 | Ana: bekleyen satırı | `saat` |
 | Yeni kayıt | `borc-ver`, `borc-al`, `tl/dolar/euro/altin` (çipler), `takvim`, `not`, `uyari` (ad boş) |
-| Onay kodu hazır | `kod`, `kopyala`, `tamam-cift` (kopyalandı), `whatsapp`, `telegram`, `sms`, `paylas`, `saat`, `geri` |
+| Onay kodu hazır | `kod`, `kopyala`, `tamam-cift` (kopyalandı), `whatsapp`, `telegram`, `eposta`, `paylas`, `saat`, `geri` |
 | Onayla | `kod`, `kopyala` (Panodan yapıştır için), `borc-ver`/`borc-al` (özet), `onayla`, `el-sikisma` (onay sonrası) |
 | Detay | `geri`, `borc-ver`/`borc-al`, `takvim`, `not`, `cuzdan` (ödeme), `tamam-cift`, `saat` (geçmiş), `cop` |
 | Ayarlar | `ses-acik`/`ses-kapali`, `titresim`, `kur`, `tl/dolar/euro/altin`, `disa-aktar`, `ice-aktar`, `bluetooth`, `bilgi` |
@@ -314,8 +315,8 @@ Geri tuşu ve pencere:
 32. `window.confirm` kodda kalmadı.
 
 Paylaşım:
-33. "Kodu kopyala" yanında WhatsApp, Telegram, SMS, Diğer düğmeleri vardır, her biri ≥ 56 dp.
-34. Üretilen URL'ler tabloyla birebir aynıdır (`wa.me/?text=`, `t.me/share/url?url=…&text=`, `sms:?body=`); mesaj doğru kodlanır (Türkçe karakter, satır sonu).
+33. "Kodu kopyala" yanında WhatsApp, Telegram, E-posta, Diğer ikonları vardır, her biri ≥ 56 dp.
+34. Üretilen URL'ler tabloyla birebir aynıdır (`wa.me/?text=`, `t.me/share/url?url=…&text=`, `mailto:?subject=…&body=…`); mesaj doğru kodlanır (Türkçe karakter, satır sonu).
 35. Mesajda kod son satırdadır ve şablon metnini içerir; yapıştırınca çözülür (madde 6).
 36. Gerçek Android cihazda her üç düğme ilgili uygulamayı açar ve mesaj dolu gelir; uygulama yoksa yedek kutu ("açılmadı…") görünür ve mesaj panodadır.
 37. `Share.share` iptalinde hata çıkmaz.

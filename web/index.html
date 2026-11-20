@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0A1412">
+  <meta name="theme-color" content="#0E1325">
   <meta name="color-scheme" content="dark">
   <title>BorcumBorç</title>
   <link rel="manifest" href="manifest.webmanifest">
@@ -13,13 +13,12 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Açılış ekranı: intro.js yönetir. Tüm ekran dokunma alanıdır (ilk 150 ms dokunuşlar yok sayılır). -->
-  <div id="intro" role="button" tabindex="0" aria-label="Açılışı geç">
+  <!-- Açılış ekranı: intro.js yönetir. Logo 2,5 sn sabit görünür. -->
+  <div id="intro" role="img" aria-label="BorcumBorç açılıyor">
     <div class="intro-stage">
       <img class="intro-mark" alt="" width="160" height="178">
       <div class="intro-word" aria-hidden="true"><span>Borcum</span><span class="b2">Borç</span></div>
     </div>
-    <p class="intro-hint" aria-hidden="true">Geçmek için dokun</p>
   </div>
 
   <!-- Ekran içeriği app.js tarafından #app içine çizilir. Canlı bölge yok: yalnızca #toast ve hata kutuları duyurulur. -->

@@ -1,5 +1,5 @@
 // Çevrimdışı çalışma: önce önbellek, yoksa ağ. Sürümü değiştirince eski önbellek silinir (activate).
-const CACHE = 'borcumborc-v2';
+const CACHE = 'borcumborc-v3';
 const FILES = [
   './', 'index.html', 'tokens.css', 'style.css', 'app.js', 'sound.js', 'native.js', 'intro.js', 'manifest.webmanifest',
   // Yazı tipleri
@@ -30,6 +30,7 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  if (new URL(e.request.url).origin !== self.location.origin) return; // kur API'leri her zaman ağdan (bayat kur olmasın)
   e.respondWith(caches.match(e.request, { ignoreSearch: true }).then((hit) =>
     hit || fetch(e.request).then((res) => {
       const copy = res.clone();

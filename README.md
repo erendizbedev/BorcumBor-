@@ -14,6 +14,7 @@ Kayıt, yalnızca karşı taraf onayladığında geçerli sayılır. Veriler tel
 - Her kayıt için bir **Onay Kodu** üretir. Karşı taraf bu kodu kendi telefonunda onaylar ve bir **Yanıt Kodu** döndürür. Yanıt Kodu girilince kayıt "Onaylandı" olur.
 - Kısmi ödemeleri ve "Ödendi" durumunu izler.
 - Toplam alacak ve borç durumunu ana ekranda gösterir.
+- Dolar, euro ve altın kurunu internetten otomatik alır; ₺ karşılığını gösterir.
 - Verileri JSON olarak dışa ve içe aktarır.
 - İnternet olmadan çalışır.
 
@@ -55,4 +56,4 @@ Android paketleme Capacitor ile yapılır. `android/` klasörü derleme sırası
 
 ## Tasarım
 
-Koyu tema, indigo ana renk, nane vurgu, Plus Jakarta Sans yazı tipi. Ayrıntılar: [`web/assets/brand.md`](web/assets/brand.md).
+Gece laciverti koyu tema, periwinkle ana eylem, nane (alacak) ve gül (borç) vurgusu, Plus Jakarta Sans yazı tipi. Son değişiklikler: [`docs/v0.2-degisiklikler.md`](docs/v0.2-degisiklikler.md). Ayrıntılar: [`web/assets/brand.md`](web/assets/brand.md).

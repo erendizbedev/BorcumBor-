@@ -34,8 +34,8 @@ jobs:
       - name: İkon ve açılış ekranını üret
         run: >
           npx capacitor-assets generate --android
-          --iconBackgroundColor '#0F1226' --iconBackgroundColorDark '#0F1226'
-          --splashBackgroundColor '#0F1226' --splashBackgroundColorDark '#0F1226'
+          --iconBackgroundColor '#0E1325' --iconBackgroundColorDark '#0E1325'
+          --splashBackgroundColor '#0E1325' --splashBackgroundColorDark '#0E1325'
 
       - name: Web dosyalarını eşitle
         run: npx cap sync android

@@ -2,7 +2,7 @@
   "appId": "com.borcumboc.app",
   "appName": "BorcumBorç",
   "webDir": "web",
-  "backgroundColor": "#0A1412",
+  "backgroundColor": "#0E1325",
   "android": {
     "allowMixedContent": false
   }

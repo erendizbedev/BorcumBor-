@@ -257,7 +257,7 @@ function groupByPerson(state) {
   return [...map.values()];
 }
 
-// "≈ ₺ karşılığı": yalnızca onaylı net üzerinden, elle girilen kurla. Bir kur eksikse sayı VERİLMEZ.
+// "≈ ₺ karşılığı": yalnızca onaylı net üzerinden, otomatik alınan güncel kurla. Bir kur eksikse sayı VERİLMEZ.
 // Sonuç: {kind:'none'} (yalnızca TL) | {kind:'missing', missing:[...]} | {kind:'ok', value}
 function tryEquivalent(t, rates) {
   const used = CUR_ORDER.filter((c) => c !== 'TRY' && t.byCur[c] && (t.byCur[c].lent || t.byCur[c].owe));
@@ -269,6 +269,28 @@ function tryEquivalent(t, rates) {
   return { kind: 'ok', value: roundCur(sum, 'TRY') };
 }
 
+/* ---- Canlı kur (otomatik) ----
+   Kaynaklar sırayla denenir; ilk geçerli yanıt kullanılır. İkisi de anahtarsız ve CORS açıktır.
+   Her iki kaynak da "1 TL = x birim" verir; biz tersini alıp "1 birim = ? TL" hesaplarız. Altın: ons -> gram (31,1034768). */
+const RATE_SOURCES = [
+  { name: 'fawazahmed0 (jsDelivr)', url: 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/try.json' },
+  { name: 'fawazahmed0 (Cloudflare)', url: 'https://latest.currency-api.pages.dev/v1/currencies/try.json' },
+  { name: 'ExchangeRate-API', url: 'https://open.er-api.com/v6/latest/TRY' }
+];
+const GRAM_PER_OUNCE = 31.1034768;
+// Her iki yanıt biçimini de okur: {try:{usd,eur,xau}} ya da {rates:{USD,EUR,XAU}}. Geçersizse null.
+function parseRatesPayload(j) {
+  const m = j && (j.try && typeof j.try === 'object' ? { USD: j.try.usd, EUR: j.try.eur, XAU: j.try.xau }
+    : j.rates && typeof j.rates === 'object' ? { USD: j.rates.USD, EUR: j.rates.EUR, XAU: j.rates.XAU } : null);
+  if (!m) return null;
+  const inv = (x) => (Number.isFinite(x) && x > 0 ? 1 / x : null);
+  const out = { USD: inv(m.USD), EUR: inv(m.EUR), XAU: inv(m.XAU) };
+  if (out.XAU) out.XAU = out.XAU / GRAM_PER_OUNCE;
+  const sane = (v, lo, hi) => v === null || (v >= lo && v <= hi); // bozuk veriyi ele (1 birim kaç TL)
+  if (!out.USD || !out.EUR || !sane(out.USD, 0.5, 5000) || !sane(out.EUR, 0.5, 5000) || !sane(out.XAU, 1, 1e6)) return null;
+  return out;
+}
+
 /* ---- Paylaşım metinleri ve bağlantıları (şartname bölüm 7) ---- */
 function shareMessage(kind, o) {
   const name = (o.name || '').trim() || 'Bir arkadaşın';
@@ -277,19 +299,18 @@ function shareMessage(kind, o) {
   }
   return `${name} seninle ${o.amountText} tutarında bir borç kaydı oluşturdu. BorcumBorç uygulamasında alttaki "Onayla" sekmesine dokun, kodu yapıştır, bilgileri kontrol edip "Onaylıyorum"a bas. Uygulaman yoksa: ${APP_URL}\nKod:\n${o.code}`;
 }
-const smsMessage = (code) => `BorcumBorç kodu (Onayla sekmesine yapıştır): ${code}`;
-// app: 'whatsapp' | 'telegram' | 'sms'. Değerler encodeURIComponent ile kodlanır (satır sonu %0A).
+// app: 'whatsapp' | 'telegram' | 'email'. Değerler encodeURIComponent ile kodlanır (satır sonu %0A).
 function shareUrl(app, message) {
   const e = encodeURIComponent;
   if (app === 'whatsapp') return `https://wa.me/?text=${e(message)}`;
   if (app === 'telegram') return `https://t.me/share/url?url=${e(APP_URL)}&text=${e(message)}`;
-  if (app === 'sms') return `sms:?body=${e(message)}`;
+  if (app === 'email') return `mailto:?subject=${e('BorcumBorç onay kodu')}&body=${e(message)}`;
   return '';
 }
 
 /* ---- Ayarlar ---- */
 function normalizeSettings(s) {
-  const d = { sound: true, volume: 70, haptic: true, rates: { USD: null, EUR: null, XAU: null, updatedAt: null }, lastCur: 'TRY' };
+  const d = { sound: true, volume: 70, haptic: true, rates: { USD: null, EUR: null, XAU: null, updatedAt: null, source: null }, lastCur: 'TRY' };
   if (!s || typeof s !== 'object') return d;
   if (typeof s.sound === 'boolean') d.sound = s.sound;
   if (typeof s.haptic === 'boolean') d.haptic = s.haptic;
@@ -298,6 +319,7 @@ function normalizeSettings(s) {
   if (s.rates && typeof s.rates === 'object') {
     ['USD', 'EUR', 'XAU'].forEach((c) => { if (Number.isFinite(s.rates[c]) && s.rates[c] > 0) d.rates[c] = s.rates[c]; });
     if (typeof s.rates.updatedAt === 'string') d.rates.updatedAt = s.rates.updatedAt;
+    if (typeof s.rates.source === 'string') d.rates.source = s.rates.source;
   }
   return d;
 }
@@ -312,7 +334,7 @@ function validImport(data) {
 if (typeof module !== 'undefined') {
   module.exports = { encodeCode, decodeCode, createRecord, requestCode, ackCode, acceptRequest, applyAck, addPayment, totals, groupByPerson,
     remaining, validImport, CURRENCIES, CUR_ORDER, roundCur, fmt, sign, fmtPlain, spoken, parseAmount, sanitizeAmount, formatAmountInput,
-    activeUnits, tryEquivalent, shareMessage, smsMessage, shareUrl, normalizeSettings, dirText, dirVerb, APP_URL };
+    activeUnits, tryEquivalent, parseRatesPayload, RATE_SOURCES, shareMessage, shareUrl, normalizeSettings, dirText, dirVerb, APP_URL };
 }
 
 /* ================= 2) ARAYÜZ ================= */
@@ -382,11 +404,11 @@ if (typeof document !== 'undefined') (function ui() {
     // ₺ karşılığı
     if (hasConfirmed) {
       const eq = tryEquivalent(t, settings.rates);
-      if (eq.kind === 'ok') h += `<div class="eq">${ic('kur')}<span>≈ ${esc(fmt(eq.value, 'TRY'))} (elle girilen kura göre)</span></div>`;
+      if (eq.kind === 'ok') h += `<div class="eq">${ic('kur')}<span>≈ ${esc(fmt(eq.value, 'TRY'))} (güncel kura göre${settings.rates.updatedAt ? ', ' + ftime(settings.rates.updatedAt) : ''})</span></div>`;
       else if (eq.kind === 'missing') {
         const names = eq.missing.map((c) => CURRENCIES[c].name);
         const who = names.length === 1 ? names[0] + ' kuru' : names.slice(0, -1).join(', ') + ' ve ' + names[names.length - 1] + ' kurları';
-        h += `<div class="eq">${ic('kur')}<span>₺ karşılığı için ${who} gerekli</span><a class="inline-btn" href="#/settings">Kur gir</a></div>`;
+        h += `<div class="eq">${ic('kur')}<span>₺ karşılığı için ${who} alınamadı${ratesBusy ? ' (güncelleniyor...)' : ''}</span><button class="inline-btn" type="button" data-act="rates-refresh">Yenile</button></div>`;
       }
     }
     return h + '</section>';
@@ -434,15 +456,14 @@ if (typeof document !== 'undefined') (function ui() {
 
   /* ---- Kod paylaşım bileşeni (Onay Kodu, Yanıt Kodu ve detaydaki kodlar için ortak) ---- */
   let currentShare = null; // {kind, code, name, amountText}: ekrandaki kod paneli
-  const SHARE_APPS = [['whatsapp', 'WhatsApp', 'whatsapp'], ['telegram', 'Telegram', 'telegram'], ['sms', 'SMS', 'sms'], ['other', 'Diğer', 'paylas']];
+  const SHARE_APPS = [['whatsapp', 'WhatsApp', 'whatsapp'], ['telegram', 'Telegram', 'telegram'], ['email', 'E-posta', 'eposta'], ['other', 'Diğer', 'paylas']];
   function codePanel(kind, code, rec, ghost) {
     currentShare = { kind, code, name: state.me, amountText: fmtPlain(rec.amount, curOf(rec)) };
     return `<div class="codepanel">
       <div class="code" id="codeText" data-act="selcode" tabindex="0" aria-label="Kod">${ic('kod')}<span>${esc(code)}</span></div>
       <button class="btn${ghost ? ' ghost' : ''}" type="button" data-act="copy" id="copyBtn">${ic('kopyala')}<span>Kodu kopyala</span></button>
       <h3 class="sh">Kodu gönder</h3>
-      <div class="share-grid">${SHARE_APPS.map(([id, name, icon]) => `<button class="btn ghost share" type="button" data-act="share" data-app="${id}">${ic(icon)}<span>${name}</span></button>`).join('')}</div>
-      <p class="note small">SMS birkaç parça olarak gidebilir.</p>
+      <div class="share-bar" role="group" aria-label="Kodu gönderilecek uygulama">${SHARE_APPS.map(([id, name, icon]) => `<button class="share-app ${id}" type="button" data-act="share" data-app="${id}">${ic(icon)}<span>${name}</span></button>`).join('')}</div>
       <div id="shareStatus" role="status"></div></div>`;
   }
   function selectCode() { const el = document.getElementById('codeText'); if (el) { const r = document.createRange(); r.selectNodeContents(el.querySelector('span')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); } }
@@ -463,7 +484,7 @@ if (typeof document !== 'undefined') (function ui() {
   async function shareVia(app) {
     Snd.claim();
     const s = currentShare, full = shareMessage(s.kind, { name: s.name, amountText: s.amountText, code: s.code });
-    const text = app === 'sms' ? smsMessage(s.code) : full;
+    const text = full;
     const appName = (SHARE_APPS.find((a) => a[0] === app) || [])[1];
     setStatus('');
     const copied = await Nat.copyText(text);
@@ -572,12 +593,23 @@ if (typeof document !== 'undefined') (function ui() {
   }
 
   /* ---- Ayarlar ---- */
-  const rateNum = (c) => (settings.rates[c] ? numFmt(settings.rates[c], 2, c === 'XAU' ? 2 : 4) : '');
-  const RATE_ROWS = [['USD', '1 $ ='], ['EUR', '1 € ='], ['XAU', '1 gr altın =']];
   const sw = (id, on, labelId, act) => `<button class="switch" type="button" role="switch" id="${id}" aria-checked="${on}" aria-labelledby="${labelId}" data-act="${act}"><span class="knob"></span></button>`;
+  let ratesBusy = false, ratesFailed = false;
+  const RATE_ROWS = [['USD', '1 $', 'dolar'], ['EUR', '1 €', 'euro'], ['XAU', '1 gr altın', 'altin']];
+  const rateTxt = (c) => (settings.rates[c] ? fmtPlain(settings.rates[c], 'TRY') : '—');
   function ratesStale() {
     const u = settings.rates.updatedAt;
-    return !!u && CUR_ORDER.some((c) => c !== 'TRY' && settings.rates[c]) && Date.now() - Date.parse(u) > 7 * 864e5;
+    return !!u && Date.now() - Date.parse(u) > 24 * 36e5;
+  }
+  function ratesCardInner() {
+    const r = settings.rates;
+    return `<h2 class="ch">${ic('kur')}Güncel kurlar</h2>
+      <ul class="rate-list">${RATE_ROWS.map(([c, lab, icon]) => `<li>${ic(icon)}<span>${lab}</span><b class="amt">${rateTxt(c)}</b></li>`).join('')}</ul>
+      <p class="note" id="rateUpd">${ratesBusy ? 'Güncelleniyor...' : r.updatedAt ? `Son güncelleme: ${ftime(r.updatedAt)}${r.source ? ' · Kaynak: ' + esc(r.source) : ''}` : 'Henüz kur alınmadı.'}</p>
+      ${ratesFailed ? `<div class="notice slim">${ic('uyari')}<p>Kurlar alınamadı. İnternet bağlantını kontrol et; son alınan kurlar kullanılıyor.</p></div>` : ''}
+      ${ratesStale() && !ratesFailed ? `<div class="notice slim">${ic('uyari')}<p>Kurlar 24 saatten eski. Yenilemek için dokun.</p></div>` : ''}
+      <p class="note warn">Kurlar uygulama açıldığında ve buradan yenilendiğinde internetten alınır. Yalnızca ₺ karşılığı göstermek içindir; kayıtların kendi biriminde tutulur.</p>
+      <button class="btn ghost" type="button" data-act="rates-refresh" ${ratesBusy ? 'disabled' : ''}>${ic('kur')}Şimdi güncelle</button>`;
   }
   function settingsView() {
     return `<div class="view"><div class="top"><h1>Ayarlar</h1></div>
@@ -592,14 +624,7 @@ if (typeof document !== 'undefined') (function ui() {
         <div class="set-row"><span class="ico">${ic('titresim')}</span><span class="lbl" id="lbl-haptic">Titreşim<small>Dokununca hafif titreşim</small></span>${sw('swHaptic', settings.haptic, 'lbl-haptic', 'sw-haptic')}</div>
         <button class="btn ghost" type="button" data-act="test-sound">${ic('ses-acik')}Sesi dene</button></section>
 
-      <form class="card" data-form="rates" novalidate><h2 class="ch">${ic('kur')}Kurlar (isteğe bağlı)</h2>
-        <p class="note">Dolar, euro ve altın kayıtlarının ₺ karşılığını ana ekranda görmek için elle yaz.</p>
-        ${RATE_ROWS.map(([c, lab]) => `<div class="rate"><label for="rate-${c}">${lab}</label><div class="rate-in"><div class="amt-wrap"><input id="rate-${c}" name="${c}" type="text" inputmode="decimal" autocomplete="off" data-amount data-digits="${c === 'XAU' ? 2 : 4}" value="${rateNum(c)}" placeholder="0,00" aria-describedby="err-rate-${c}"><span class="sym r" aria-hidden="true">₺</span></div>
-          <button class="btn ghost small" type="button" data-act="rate-clear" data-cur="${c}" aria-label="${CURRENCIES[c].name} kurunu temizle">Temizle</button></div><div class="field-err" id="err-rate-${c}" hidden></div></div>`).join('')}
-        ${settings.rates.updatedAt ? `<p class="note" id="rateUpd">Son güncelleme: ${fdate(settings.rates.updatedAt)}</p>` : ''}
-        ${ratesStale() ? `<div class="notice slim">${ic('uyari')}<p>Kurlar 7 günden eski.</p></div>` : ''}
-        <p class="note warn">Bu kurlar senin girdiğin değerlerdir, canlı değildir.</p>
-        <button class="btn ghost" type="submit">Kaydet</button></form>
+      <section class="card" id="ratesCard">${ratesCardInner()}</section>
 
       <section class="card"><h2 class="ch">Verilerin</h2><p class="note">Tüm kayıtlar yalnızca bu cihazda tutulur. Yedek almak için dışa aktar.</p>
         <div class="actions"><button class="btn ghost" type="button" data-act="export">${ic('disa-aktar')}JSON olarak dışa aktar</button>
@@ -680,15 +705,15 @@ if (typeof document !== 'undefined') (function ui() {
     const h = $app.querySelector('h1');
     if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); }
   }
-  function render() {
+  function render(keep) { // keep: sessiz yenileme (kaydırma ve odak yerinde kalır)
     const { page, id } = route();
     const views = { home, new: () => newRecord(ctx.created), confirm: () => confirmView(ctx.pending, ctx.ack, ctx.rec), settings: settingsView, detail: () => detail(id) };
     $app.innerHTML = (views[page] || home)();
     const cur = page === 'detail' ? 'home' : (views[page] ? page : 'home');
     document.querySelectorAll('#nav a').forEach((a) => { const on = a.dataset.nav === cur; a.classList.toggle('on', on); if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
     if (page === 'new' && !ctx.created) updateDirHelp();
-    window.scrollTo(0, 0);
-    if (!Intro.active() && !dlg) focusHeading();
+    if (!keep) window.scrollTo(0, 0);
+    if (!keep && !Intro.active() && !dlg) focusHeading();
   }
   window.addEventListener('hashchange', () => { ctx = {}; render(); });
 
@@ -810,6 +835,8 @@ if (typeof document !== 'undefined') (function ui() {
   document.addEventListener('click', (e) => {
     const t = e.target.closest('.btn, .chip, .dirbtn, .switch, .row, .back, #nav a, .inline-btn');
     if (t) Snd.scheduleTap(t.matches('#nav a, .back') ? 'nav' : 'tap');
+    const f = e.target.closest('.chip, .dirbtn, .row, .back, .inline-btn, .share-app, .unit, .btn.ghost, .btn.danger'); // renkli geri bildirim dalgası
+    if (f) { f.classList.remove('flash'); void f.offsetWidth; f.classList.add('flash'); setTimeout(() => f.classList.remove('flash'), 520); }
   });
   document.addEventListener('click', async (e) => {
     const nav = e.target.closest('#nav a'); // aynı sekmeye tekrar basınca ekranı sıfırla
@@ -843,7 +870,7 @@ if (typeof document !== 'undefined') (function ui() {
       settings[key] = !settings[key]; saveSettings(); b.setAttribute('aria-checked', String(settings[key]));
       if (key === 'sound') document.querySelector('#soundIco use').setAttribute('href', `assets/icons.svg#${settings.sound ? 'ses-acik' : 'ses-kapali'}`);
     } else if (act === 'test-sound') { Snd.claim(); Snd.play('success'); }
-    else if (act === 'rate-clear') { const inp = document.getElementById('rate-' + b.dataset.cur); inp.value = ''; inp.focus(); }
+    else if (act === 'rates-refresh') refreshRates(true);
   });
   document.addEventListener('keydown', (e) => {
     const g = e.target.dataset && e.target.dataset.go;
@@ -864,7 +891,7 @@ if (typeof document !== 'undefined') (function ui() {
         const r = state.records.find((x) => x.id === f.dataset.id), v = parseAmount(fd.get('amt'));
         if (Number.isNaN(v)) throw new Error('Ödeme tutarını rakamla yaz. Örnek: 12,50');
         const before = r.status; addPayment(r, v); save(); render(); Snd.play('pay'); toast(before !== r.status ? 'Ödendi, borç kapandı' : 'Ödeme eklendi');
-      } else if (kind === 'rates') submitRates(f, fd);
+      }
     } catch (er) { fail(er, f); }
   });
   function submitNew(f, fd) {
@@ -880,18 +907,40 @@ if (typeof document !== 'undefined') (function ui() {
     settings.lastCur = cur; saveSettings(); save();
     ctx = { created: rec }; render(); Snd.play('success');
   }
-  function submitRates(f, fd) {
-    const errs = [], next = { updatedAt: nowISO() };
-    ['USD', 'EUR', 'XAU'].forEach((c) => {
-      const raw = String(fd.get(c) || '').trim();
-      if (!raw) { next[c] = null; return; }
-      const v = parseAmount(raw);
-      if (!(v > 0)) errs.push([c, 'Kur sıfırdan büyük bir sayı olmalı. Örnek: 32,50']); else next[c] = v;
-    });
-    if (errs.length) { showFieldErrors(f, errs, 'err-rate-'); return; }
-    settings.rates = next; saveSettings(); Snd.play('success'); toast('Kurlar kaydedildi');
-    render();
+  /* ---- Kurları internetten al (açılışta, ayarlarda ve elle) ---- */
+  async function fetchRates() {
+    for (const src of RATE_SOURCES) {
+      const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null, to = setTimeout(() => ctl && ctl.abort(), 8000);
+      try {
+        const res = await fetch(src.url + '?t=' + Date.now(), { signal: ctl ? ctl.signal : undefined }); // ?t= önbellek kırıcı (no-store başlığı CORS ön isteği tetikler)
+        if (!res.ok) continue;
+        const r = parseRatesPayload(await res.json());
+        if (r) return { ...r, updatedAt: nowISO(), source: src.name };
+      } catch (e) { /* bu kaynak olmadı: sıradakini dene */ } finally { clearTimeout(to); }
+    }
+    return null;
   }
+  function paintRates() {
+    const card = document.getElementById('ratesCard');
+    if (card) {
+      const had = card.contains(document.activeElement); // odak yeniden çizimde kaybolmasın
+      card.innerHTML = ratesCardInner();
+      if (had) { const b = card.querySelector('[data-act="rates-refresh"]'); if (b) b.focus({ preventScroll: true }); }
+    } else if (route().page === 'home' && !dlg && !ratesBusy) render(true);
+  }
+  async function refreshRates(manual) {
+    if (ratesBusy) return;
+    const fresh = settings.rates.updatedAt && Date.now() - Date.parse(settings.rates.updatedAt) < 6 * 36e5;
+    if (!manual && fresh && settings.rates.USD && settings.rates.EUR) return; // 6 saatten yeniyse tekrar sorma
+    ratesBusy = true; ratesFailed = false; paintRates();
+    const r = await fetchRates();
+    ratesBusy = false;
+    if (r) { settings.rates = { USD: r.USD, EUR: r.EUR, XAU: r.XAU, updatedAt: r.updatedAt, source: r.source }; saveSettings(); if (manual) { Snd.play('success'); toast('Kurlar güncellendi'); } }
+    else { ratesFailed = true; if (manual) { Snd.play('error'); toast('Kurlar alınamadı', 'uyari'); } }
+    paintRates();
+  }
+  window.addEventListener('online', () => refreshRates(false));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshRates(false); });
 
   /* ---- Klavye açıkken alt çubuğu gizle (WebView küçülünce çubuk klavyeyi kovalamasın) ---- */
   if (window.visualViewport) window.visualViewport.addEventListener('resize', () => {
@@ -913,5 +962,6 @@ if (typeof document !== 'undefined') (function ui() {
       focusHeading();
     }
   });
+  refreshRates(false); // açılışta kurları arka planda güncelle
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();

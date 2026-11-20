@@ -1,6 +1,6 @@
 'use strict';
 /* BorcumBorç - açılış (intro) ekranı (UX şartnamesi bölüm 2).
-   Her soğuk başlatmada gösterilir: ilk kurulumda uzun (2 sn), sonrakilerde kısa (0,9 sn).
+   Her soğuk başlatmada aynı sürede gösterilir: logo en az 2,5 sn ekranda kalır (dokunarak geçilemez).
    Yalnızca transform ve opacity animasyonlanır; asıl animasyon CSS'te ve mark-animated.svg içindedir. */
 (function (root) {
   const D = root.document;
@@ -17,10 +17,11 @@
     if (exitMs > 0) { el.classList.add('leaving'); setTimeout(end, exitMs); } else end();
   }
 
-  // Dokunma ile geçiş: ilk 150 ms kazara dokunuş sayılır. Geri tuşu bunu atlar (force).
+  const MIN_MS = 2500; // logo en az bu kadar görünür
+  // Dokunma ile geçiş: logo süresi dolmadan dokunuş yok sayılır. Geri tuşu bunu atlar (force).
   function skip(force) {
     if (!isActive) return;
-    if (!force && Date.now() - startedAt < 150) return;
+    if (!force && Date.now() - startedAt < MIN_MS) return;
     finish();
   }
 
@@ -28,16 +29,16 @@
     el = D.getElementById('intro');
     if (!el) { if (o.onDone) o.onDone(); return; }
     onDone = o.onDone || null;
-    const long = !!o.firstTime, still = !!o.reduced;
+    const long = true, still = !!o.reduced; // her açılışta tam sürüm
     isActive = true; startedAt = Date.now();
     el.hidden = false;
     el.classList.add(long ? 'long' : 'short');
     if (still) el.classList.add('still');
     // Uzun sürümde çizim animasyonu, diğerlerinde hazır işaret
     el.querySelector('img').src = long && !still ? 'assets/mark-animated.svg' : 'assets/mark.svg';
-    // Süreler: uzun 2000+350, kısa 650+250 (toplam 0,9 sn); azaltılmış harekette 700 / 400 ms ve anlık çıkış
-    const hold = still ? (long ? 700 : 400) : (long ? 2000 : 650);
-    exitMs = still ? 0 : (long ? 350 : 250);
+    // Süre: 2500 ms logo + 350 ms çıkış. Azaltılmış harekette de logo 2500 ms durur, çıkış anlıktır.
+    const hold = MIN_MS;
+    exitMs = still ? 0 : 350;
     timer = setTimeout(finish, hold);
     el.addEventListener('click', () => skip(false));
     el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); skip(false); } });
